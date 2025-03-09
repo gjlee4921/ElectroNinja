@@ -60,9 +60,19 @@ Ensure that LTSpice is installed on your system. You can download it from the [A
    cd electroninja
 
 2. **Install the dependencies**
-
+ 
    ```bash
    pip install -r requirements.txt
+## ⚠️ Note for macOS Users
+
+Some dependencies in this project require additional installation steps on macOS:
+
+- **`pyautogui`** requires the Quartz framework. Install it using:
+  ```sh
+  pip install pyobjc-framework-Quartz
+`pywinauto` and `pygetwindow` are Windows-only libraries. These should be skipped on macOS as they are not required for macOS users.
+`faiss-cpu` may require installation via Homebrew before using pip.
+
 
 3. **Set Up Environment Variables**
 
