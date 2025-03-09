@@ -42,6 +42,10 @@ class MainWindow(QMainWindow):
         self.conversation_history = []  # Stores ASC attempts and vision feedback
         self.attempt_counter = 0
         self.max_iterations = 5
+        
+        self.left_panel = LeftPanel(self)
+        self.middle_panel = MiddlePanel(self)
+        self.right_panel = RightPanel(self)
 
         # Initialize managers
         self.chat_manager = ChatManager()
@@ -76,9 +80,6 @@ class MainWindow(QMainWindow):
         self.main_layout.setSpacing(10)
         main_vlayout.addLayout(self.main_layout)
 
-        self.left_panel = LeftPanel(self)
-        self.middle_panel = MiddlePanel(self)
-        self.right_panel = RightPanel(self)
 
         self.left_panel.setMinimumWidth(self.left_panel_collapsed_width)
         self.left_panel.setMaximumWidth(300)
@@ -95,7 +96,6 @@ class MainWindow(QMainWindow):
     def connectSignals(self):
         self.right_panel.messageSent.connect(self.handle_message)
         self.left_panel.compile_button.clicked.connect(self.compile_circuit)
-        self.middle_panel.edit_button.clicked.connect(self.edit_with_ltspice)
         print("Signals connected.")
 
     def on_left_panel_toggle(self, is_expanding):
