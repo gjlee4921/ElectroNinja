@@ -32,7 +32,7 @@ class ChatManager:
     def get_asc_code(self, prompt: str) -> str:
         """
         Generate the .asc code based on the provided prompt.
-        :param prompt: The complete prompt (with examples and user request).
+        :param prompt: The complete prompt (which includes examples and the user request).
         :return: The .asc code as a string, or "N" if the query is deemed irrelevant.
         """
         try:

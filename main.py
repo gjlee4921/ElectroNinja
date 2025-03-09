@@ -37,21 +37,21 @@ class MainWindow(QMainWindow):
         
         # Current circuit file and prompt
         self.current_circuit_file = None
-        self.circuit_request_prompt = None  # Stores the latest circuit request
+        self.circuit_request_prompt = None  # Latest circuit request
         
-        # Initialize simulation process (if needed later)
+        # Simulation process (if needed later)
         self.ltspice_process = None
 
-        # Conversation history: only store outputs from o3-mini (ASC code attempts) and vision feedback.
-        # Each entry will be a dict: {"attempt": <number>, "asc_code": "<code>"}.
+        # Conversation history: store only outputs from o3-mini (ASC code attempts)
+        # Each entry: {"attempt": <number>, "asc_code": "<code>"}
         self.conversation_history = []
         self.attempt_counter = 0
 
-        # Instantiate our ChatManager and VectorDB.
+        # Instantiate ChatManager and VectorDB
         self.chat_manager = ChatManager()
-        self.vector_db = VectorDB()  # Ensure your DB is up and running.
+        self.vector_db = VectorDB()  # Ensure Qdrant is running and collection exists
 
-        # Test mode: when True, print the constructed prompt instead of sending it.
+        # Test mode: print the constructed prompt instead of sending it on first attempt.
         self.test_mode = True
 
         self.initUI()
@@ -84,7 +84,7 @@ class MainWindow(QMainWindow):
         self.right_panel.setSizePolicy(QWidget().sizePolicy())
 
         self.left_panel.setMinimumWidth(self.left_panel_collapsed_width)
-        self.left_panel.setMaximumWidth(300)
+        self.left_panel.setMaximumWidth(300)  # Temporary; recalculated below
 
         self.main_layout.addWidget(self.left_panel)
         self.main_layout.addWidget(self.middle_panel)
@@ -135,17 +135,20 @@ class MainWindow(QMainWindow):
 
     def build_prompt(self, user_request: str) -> str:
         """
-        Constructs a prompt for the o3-mini model that includes the 3 most semantically similar
-        circuit examples from the vector DB, then the user's request.
+        Retrieves the top 3 semantically similar examples from the vector DB,
+        then constructs the prompt that will be sent to the o3-mini model.
         """
-        # Retrieve the top-3 examples from the vector database.
         results = self.vector_db.search(user_request, top_k=3)
         examples_text = ""
         for i, res in enumerate(results, start=1):
             desc = res["metadata"].get("description", "No description")
             asc_code = res["asc_code"]
-            examples_text += f"Example {i}:\nDescription: {desc}\nASC Code:\n-----------------\n{asc_code}\n-----------------\n\n"
-        
+            examples_text += (
+                f"Example {i}:\n"
+                f"Description: {desc}\n"
+                "ASC Code:\n-----------------\n"
+                f"{asc_code}\n-----------------\n\n"
+            )
         prompt = (
             f"{general}\n\n"
             "Below are three examples of circuits similar to the user's request:\n\n"
@@ -165,15 +168,14 @@ class MainWindow(QMainWindow):
             print(f"Stored circuit prompt: {self.circuit_request_prompt}")
             self.attempt_counter += 1
 
-            # Build the prompt with context from the vector DB.
+            # Build the prompt that includes context from the vector DB.
             final_prompt = self.build_prompt(self.circuit_request_prompt)
-            # For test mode, print the prompt.
             if self.test_mode:
                 print("=== Prompt to o3-mini ===")
                 print(final_prompt)
-                # Disable test_mode for subsequent calls
-                self.test_mode = False
-            # Now call the o3-mini model using a worker.
+                self.test_mode = False  # Disable test mode after printing
+
+            # Run the o3-mini LLM call with the constructed prompt in a worker.
             self.ascWorker = LLMWorker(self.chat_manager.get_asc_code, final_prompt)
             self.ascWorker.resultReady.connect(self.on_asc_code_ready)
             self.ascWorker.start()
@@ -200,7 +202,7 @@ class MainWindow(QMainWindow):
         if "hello" in text or "hi" in text:
             return "Hello! I'm ElectroNinja. How can I help with your circuit design?"
         elif "ltspice" in text:
-            return "LTspice is a powerful circuit simulation tool. You can use the editor button to open your design in LTSpice when you're ready."
+            return "LTSpice is a powerful circuit simulation tool. You can use the editor button to open your design in LTSpice when you're ready."
         elif "help" in text:
             return "I can help you design circuits, analyze components, or explain electrical concepts. Please describe what you're trying to build!"
         else:
