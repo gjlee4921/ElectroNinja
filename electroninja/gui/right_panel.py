@@ -8,8 +8,8 @@ from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, pyqtSignal, QTime
 from PyQt5.QtGui import QFont
 
 # Import our custom components
-from chat_panel import ChatPanel
-from chat_input import ChatInputWidget
+from electroninja.gui.chat_panel import ChatPanel
+from electroninja.gui.chat_input import ChatInputWidget
 
 
 class RightPanel(QFrame):

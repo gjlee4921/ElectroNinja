@@ -7,11 +7,11 @@ from PyQt5.QtCore import QPropertyAnimation, QEasingCurve, Qt, pyqtSlot, QTimer
 from PyQt5.QtGui import QFont, QPixmap
 
 # Import your custom modules
-from style import STYLE_SHEET, setup_fonts, COLORS
-from top_bar import TopBar
-from left_panel import LeftPanel
-from middle_panel import MiddlePanel
-from right_panel import RightPanel
+from electroninja.gui.style import STYLE_SHEET, setup_fonts, COLORS
+from electroninja.gui.top_bar import TopBar
+from electroninja.gui.left_panel import LeftPanel
+from electroninja.gui.middle_panel import MiddlePanel
+from electroninja.gui.right_panel import RightPanel
 
 class MainWindow(QMainWindow):
     def __init__(self):

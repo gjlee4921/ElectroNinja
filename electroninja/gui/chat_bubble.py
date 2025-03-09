@@ -93,7 +93,7 @@ class ChatBubble(QFrame):
         
         # For short messages, use their natural width (but no less than min_width)
         # For longer messages, cap at max_width
-        target_width = min(max(natural_width, min_width), max_width)
+        target_width = int(min(max(natural_width, min_width), max_width))
         
         # Apply the determined width
         self.message_text.setFixedWidth(target_width)
