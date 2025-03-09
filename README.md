@@ -80,6 +80,22 @@ Some dependencies in this project require additional installation steps on macOS
 
   ```bash
   OPENAI_API_KEY=your_openai_api_key_here
+  ```
+  
+## Usage
+
+### Running the Application
+
+Launch the full ElectroNinja interface with:
+
+```bash
+python main.py
+```
+Give instructions for designing circuit in the right panel.
+
+Once asc file has been generated in the left panel, click "Compile Circuit" button to visualize ciruit.
+
+The circuit would be displayed in the central panel, click the "Edit with LT SPICE" button to edit circuit in LT SPICE.
 
 
 
