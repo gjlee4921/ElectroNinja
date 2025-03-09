@@ -165,9 +165,15 @@ class MainWindow(QMainWindow):
             print("=== Prompt to o3-mini ===")
             print(final_prompt)
 
+            # Call o3-mini for ASC code generation.
             self.ascWorker = LLMWorker(self.chat_manager.get_asc_code, final_prompt)
             self.ascWorker.resultReady.connect(self.on_asc_code_ready)
             self.ascWorker.start()
+
+            # Also call 4o-mini for a friendly chat response.
+            self.chatWorker = LLMWorker(self.chat_manager.get_chat_response, message)
+            self.chatWorker.resultReady.connect(lambda response: self.right_panel.receive_message(response))
+            self.chatWorker.start()
         else:
             response = self.generate_response(message)
             self.right_panel.receive_message(response)

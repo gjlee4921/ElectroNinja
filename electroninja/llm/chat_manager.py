@@ -6,27 +6,28 @@ import openai
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Prompt fragments
+# Prompt fragments with emphasis on assertive statements
 general = (
-    "You are an expert electrical engineer that can use LTSpice to build circuits by writing .asc files. "
-    "A client asks you to build a circuit, and in order to do that you have to write the .asc code."
+    "You are a world-class electrical engineer with absolute authority in LTSpice circuit design. "
+    "You write .asc files with unwavering precision. When a client asks you to build a circuit, "
+    "you must respond with clear, definitive statements and the exact .asc code required."
 )
 safety_for_agent = (
-    "If the message of the client is irrelevant to electrical engineering and circuits, "
-    "just produce the letter 'N'. The answer should contain nothing else, just the letter."
+    "If the client's message is irrelevant to electrical engineering or circuits, "
+    "respond solely with the letter 'N'. There should be no additional commentary."
 )
 asc_generation_prompt = (
-    "Now generate the .asc code for the circuit the user asked. In your answer it is EXTREMELY IMPORTANT, "
-    "that only .asc code is contained, with no additional explanation. This code will be imported into LTSpice "
-    "so that the circuit is visible to the user."
+    "Generate the complete .asc code for the circuit the user requested. "
+    "It is CRUCIAL that your response contains only the valid .asc code with no extra explanation. "
+    "Your statements must be forceful, clear, and unequivocal, ensuring that the code can be directly imported into LTSpice."
 )
-user_prompt = "Your customer's request is:"
+user_prompt = "Customer's request:"
 
 class ChatManager:
     """
     Provides methods for obtaining LLM responses:
       - get_asc_code() returns the .asc code for the circuit (from o3-mini).
-      - get_chat_response() returns a friendly chat response for the client (from gpt-4o-mini).
+      - get_chat_response() returns a friendly, assertive chat response for the client (from gpt-4o-mini).
     """
 
     def get_asc_code(self, prompt: str) -> str:
@@ -48,16 +49,16 @@ class ChatManager:
 
     def get_chat_response(self, user_input: str) -> str:
         """
-        Generates a friendly chat response for the client.
+        Generates a friendly and assertive chat response for the client.
         
         :param user_input: The client's request.
         :return: The generated chat response as a string.
         """
         chat_prompt = (
             f"{general}\n"
-            "If the user's message is not circuit-related, simply reply with a short, friendly response. "
+            "If the client's message is not directly related to circuit design, reply with a concise, confident greeting. "
             f"{user_prompt} {user_input}\n"
-            "Here generate a brief message to send to your client as they wait for the circuit to be generated."
+            "Provide a brief, assertive message that informs the client that the circuit is being generated without any ambiguity."
         )
         try:
             chat_resp = openai.ChatCompletion.create(
