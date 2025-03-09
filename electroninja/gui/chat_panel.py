@@ -29,8 +29,8 @@ class ChatPanel(QScrollArea):
 
         # Vertical layout for the bubbles
         self.chat_layout = QVBoxLayout(self.chat_container)
-        self.chat_layout.setSpacing(6)  # Reduced spacing between messages
-        self.chat_layout.setContentsMargins(10, 10, 10, 10)  # Reduced margins
+        self.chat_layout.setSpacing(3)  # Reduced spacing between messages
+        self.chat_layout.setContentsMargins(1, 1, 1, 1)  # Reduced margins
         self.chat_layout.setAlignment(Qt.AlignTop)
 
         # Add a stretch at the end so the bubbles "stick" to the top

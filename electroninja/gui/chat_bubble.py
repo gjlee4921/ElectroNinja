@@ -1,13 +1,15 @@
 from PyQt5.QtWidgets import (
     QFrame, QVBoxLayout, QTextEdit, QSizePolicy
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont, QTextOption
 
 class ChatBubble(QFrame):
     """
-    A single chat message "bubble" that is only as tall as it needs 
+    A single chat message "bubble" that is only as tall as it needs
     to display the text, plus a small padding to avoid scrollbars.
+    This version forces a re-layout once the bubble is shown, so
+    it sees the chat panel's final width from the start.
     """
     def __init__(self, message, is_user=True, parent=None):
         super().__init__(parent)
@@ -64,27 +66,67 @@ class ChatBubble(QFrame):
 
         layout.addWidget(self.message_text)
 
+    def showEvent(self, event):
+        """
+        Once this bubble is actually shown in the UI,
+        we schedule a second sizing pass to see the final layout width.
+        """
+        super().showEvent(event)
+        QTimer.singleShot(0, self._delayedSizeAdjust)
+
+    def _delayedSizeAdjust(self):
+        """Called via QTimer once the bubble is actually displayed."""
+        if not self.parent():
+            return
+
+        # 1) Measure the text's natural (unwrapped) width
+        doc = self.message_text.document()
+        doc.setTextWidth(999999)  # no wrapping
+        natural_width = doc.size().width()
+
+        # 2) Determine how much horizontal space is available
+        parent_width = self.parent().width()
+        available_width = parent_width - 20  # e.g., 20 px margin from edges
+
+        # 3) We'll use the smaller of 'natural_width' or 'available_width'
+        final_width = min(natural_width, available_width)
+
+        # 4) Enforce a minimal width to avoid extremely skinny bubbles
+        if final_width < 30:
+            final_width = 30
+
+        # 5) Call updateSize() to wrap the text at 'final_width'
+        self.updateSize(final_width)
+
+
+
     def updateSize(self, max_width):
         """
-        Fit the text within max_width, then compute the exact height 
-        and add a small padding (e.g. +10) to prevent scrollbars.
+        Fit the text within a maximum width, but allow short messages
+        to use a narrower bubble. Also adds minimal vertical padding.
         """
         doc = self.message_text.document()
 
-        # Wrap text at max_width
-        doc.setTextWidth(max_width)
+        # Step 1: Let the document measure its natural width (no wrapping yet).
+        doc.setTextWidth(999999)
+        natural_width = doc.size().width()
 
-        # Fix the text edit width
-        self.message_text.setFixedWidth(max_width)
+        # Step 2: Clamp the width between a minimum and max_width.
+        min_width = 30
+        final_width = min(natural_width, max_width)
+        if final_width < min_width:
+            final_width = min_width
 
-        # Ensure layout is up-to-date
-        # doc.size() calculates the required height
+        # Step 3: Apply wrapping at 'final_width' and measure height.
+        doc.setTextWidth(final_width)
         doc_height = doc.size().height()
 
-        # Add a small padding to ensure no scrollbars appear
-        doc_height += 15
+        # Step 4: Add a small vertical padding to avoid scrollbars.
+        doc_height += 5
 
+        # Step 5: Update the QTextEdit size.
+        self.message_text.setFixedWidth(int(final_width))
         self.message_text.setFixedHeight(int(doc_height))
 
-        # Adjust the bubble's size
+        # Step 6: Resize the outer QFrame (the bubble).
         self.adjustSize()
