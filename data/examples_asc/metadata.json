@@ -1,16 +1,130 @@
 [
-    {
+  {
       "asc_path": "data/examples_asc/2parallel.asc",
       "description": "Two resistors in parallel, each 2 ohms, with a DC source of 5V."
-    },
-    {
+  },
+  {
       "asc_path": "data/examples_asc/rc_filter.asc",
       "description": "A simple RC filter with a 10 kΩ resistor and a 0.1 μF capacitor."
-    },
-    {
-      "asc_path": "data/examples_asc/op_amp.asc",
-      "description": "An operational amplifier configured as a non-inverting amplifier with a gain of 10."
-    }
-  ]
-  
+  },
+  {
+      "asc_path": "data/examples_asc/voltage_divider.asc",
+      "description": "A DC voltage divider using two resistors to split a DC voltage source."
+  },
+  {
+      "asc_path": "data/examples_asc/rc_lowpass.asc",
+      "description": "An RC low-pass filter using a resistor and capacitor to allow low frequencies while attenuating high frequencies."
+  },
+  {
+      "asc_path": "data/examples_asc/rc_highpass.asc",
+      "description": "An RC high-pass filter that passes high-frequency signals while blocking low-frequency ones."
+  },
+  {
+      "asc_path": "data/examples_asc/rl_lowpass.asc",
+      "description": "An RL low-pass filter using a resistor and inductor to attenuate high-frequency signals."
+  },
+  {
+      "asc_path": "data/examples_asc/rl_highpass.asc",
+      "description": "An RL high-pass filter circuit that allows high frequencies to pass, using a resistor and inductor."
+  },
+  {
+      "asc_path": "data/examples_asc/series_rlc.asc",
+      "description": "A fundamental series RLC circuit demonstrating resonance with a resistor, inductor, and capacitor in series with a voltage source."
+  },
+  {
+      "asc_path": "data/examples_asc/parallel_rlc.asc",
+      "description": "A basic parallel RLC circuit illustrating resonance behavior with the resistor, inductor, and capacitor arranged in parallel."
+  },
+  {
+      "asc_path": "data/examples_asc/rlc_bandpass.asc",
+      "description": "An RLC band-pass filter that allows a specific range of frequencies to pass while attenuating frequencies outside that band."
+  },
+  {
+      "asc_path": "data/examples_asc/rlc_bandstop.asc",
+      "description": "An RLC band-stop (notch) filter designed to block a narrow band of frequencies while allowing others to pass."
+  },
+  {
+      "asc_path": "data/examples_asc/bridge_rectifier.asc",
+      "description": "A full-wave bridge rectifier circuit using four diodes to convert an AC voltage into pulsating DC."
+  },
+  {
+      "asc_path": "data/examples_asc/half_wave_rectifier.asc",
+      "description": "A half-wave rectifier circuit that uses a single diode to convert an AC signal into pulsating DC."
+  },
+  {
+      "asc_path": "data/examples_asc/full_wave_rectifier_with_filter.asc",
+      "description": "A full-wave rectifier combined with a capacitor filter to smooth the DC output from an AC input."
+  },
+  {
+      "asc_path": "data/examples_asc/series_lc_resonant.asc",
+      "description": "A series LC resonant circuit using an inductor and capacitor in series to highlight resonant behavior in AC circuits."
+  },
+  {
+      "asc_path": "data/examples_asc/parallel_lc_tank.asc",
+      "description": "A parallel LC tank circuit that resonates at a specific frequency, commonly used in RF applications."
+  },
+  {
+      "asc_path": "data/examples_asc/diode_clipper.asc",
+      "description": "A diode clipper circuit that limits the amplitude of an AC signal by clipping its peaks using diodes and resistors."
+  },
+  {
+      "asc_path": "data/examples_asc/diode_clamper.asc",
+      "description": "A diode clamper circuit that shifts the DC level of an AC signal without changing its overall shape."
+  },
+  {
+      "asc_path": "data/examples_asc/zener_regulator.asc",
+      "description": "A voltage regulator circuit using a Zener diode and resistor to maintain a constant DC voltage."
+  },
+  {
+      "asc_path": "data/examples_asc/led_current_limiter.asc",
+      "description": "A simple LED circuit with a current-limiting resistor to safely power an LED from a DC voltage source."
+  },
+  {
+      "asc_path": "data/examples_asc/rc_integrator.asc",
+      "description": "An RC integrator circuit that produces an output voltage proportional to the time integral of the input signal."
+  },
+  {
+      "asc_path": "data/examples_asc/rc_differentiator.asc",
+      "description": "An RC differentiator circuit that outputs a voltage proportional to the rate of change of the input signal."
+  },
+  {
+      "asc_path": "data/examples_asc/voltage_doubler.asc",
+      "description": "A voltage doubler circuit that uses diodes and capacitors to effectively double the peak voltage of an AC source."
+  },
+  {
+      "asc_path": "data/examples_asc/ac_coupling.asc",
+      "description": "An AC coupling circuit that employs a capacitor to block DC components while allowing AC signals to pass."
+  },
+  {
+      "asc_path": "data/examples_asc/diode_peak_detector.asc",
+      "description": "A diode peak detector circuit that uses a diode, resistor, and capacitor to capture the peak value of an AC signal."
+  }
+]
 
+
+/* the above are examples, make the real ones, figure out the vector db stuff from the documantation and ask chat gpt. make at least 20 examples. keep asking chatgpt everything
+Instructions for Updating the Circuit Examples Database:
+
+This JSON file contains an array of example entries for circuit designs.
+Each entry should include:
+
+1. "asc_path": The relative path to the .asc file (located in data/examples_asc/).
+2. "description": A concise description of the circuit, highlighting key components 
+and the overall functionality. This description is used to generate embeddings for semantic search.
+
+Example entry:
+{
+    "asc_path": "data/examples_asc/2parallel.asc",
+    "description": "Two resistors in parallel, each 2 ohms, with a DC source of 5V."
+}
+
+Guidelines:
+- Ensure that the .asc file is placed inside the 'data/examples_asc/' folder.
+- Write clear, distinctive descriptions for each circuit. Aim to cover a range of circuit types 
+(e.g., filters, amplifiers, oscillators).
+- For a minimal starting set, curate around 20 distinctive examples. Our retrieval system will return the single best match for each query.
+- When adding a new example, check for duplicates and ensure that the new entry provides unique value.
+- After updating the JSON file, run the ingestion script (if applicable) to update the vector database with the new examples.
+
+By following these instructions, we ensure our vector database remains effective for retrieval-augmented generation (RAG) of new circuit designs.
+*/
