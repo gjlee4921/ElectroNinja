@@ -9,44 +9,47 @@
   },
   {
       "asc_path": "data/examples_asc/voltage_divider.asc",
-      "description": "A DC voltage divider using two resistors to split a DC voltage source."
+      "description": "A DC voltage divider using a 1000Ω and a 2000Ω resistors to split a 1V DC voltage source."
   },
   {
-      "asc_path": "data/examples_asc/rc_lowpass.asc",
-      "description": "An RC low-pass filter using a resistor and capacitor to allow low frequencies while attenuating high frequencies."
+      "asc_path": "data/examples_asc/bridge_rectifier_with_cap_filter.asc",
+      "description": "A full-wave bridge rectifier circuit using four 1N914 diodes and a 1000μF capacitor filter to convert an 17V amplitude 60Hz AC input into a smoother DC output. The capacitor reduces ripple by filtering the pulsating DC produced by the diode bridge."
   },
   {
       "asc_path": "data/examples_asc/rc_highpass.asc",
-      "description": "An RC high-pass filter that passes high-frequency signals while blocking low-frequency ones."
-  },
+      "description": "An RC high-pass filter using a 10 kΩ resistor and a 0.1 µF capacitor. The capacitor is in series with the input, while the resistor is connected from the output node to ground. This arrangement passes higher-frequency signals and attenuates those below approximately 159 Hz."
+  }
+,
   {
       "asc_path": "data/examples_asc/rl_lowpass.asc",
-      "description": "An RL low-pass filter using a resistor and inductor to attenuate high-frequency signals."
-  },
-  {
-      "asc_path": "data/examples_asc/rl_highpass.asc",
-      "description": "An RL high-pass filter circuit that allows high frequencies to pass, using a resistor and inductor."
-  },
-  {
-      "asc_path": "data/examples_asc/series_rlc.asc",
-      "description": "A fundamental series RLC circuit demonstrating resonance with a resistor, inductor, and capacitor in series with a voltage source."
-  },
-  {
-      "asc_path": "data/examples_asc/parallel_rlc.asc",
-      "description": "A basic parallel RLC circuit illustrating resonance behavior with the resistor, inductor, and capacitor arranged in parallel."
-  },
-  {
-      "asc_path": "data/examples_asc/rlc_bandpass.asc",
-      "description": "An RLC band-pass filter that allows a specific range of frequencies to pass while attenuating frequencies outside that band."
-  },
-  {
-      "asc_path": "data/examples_asc/rlc_bandstop.asc",
-      "description": "An RLC band-stop (notch) filter designed to block a narrow band of frequencies while allowing others to pass."
-  },
-  {
-      "asc_path": "data/examples_asc/bridge_rectifier.asc",
-      "description": "A full-wave bridge rectifier circuit using four diodes to convert an AC voltage into pulsating DC."
-  },
+      "description": "An RL low-pass filter using a 10 mH inductor in series with the input and a 100 Ω resistor to ground. This arrangement attenuates high-frequency signals above roughly 1.59 kHz."
+  }
+,
+{
+  "asc_path": "data/examples_asc/rl_highpass.asc",
+  "description": "An RL high-pass filter circuit using a 100 Ω resistor in series with the input and a 10 mH inductor to ground. It passes high-frequency signals while attenuating those below approximately 1.59 kHz (cutoff frequency f_c = R/(2πL))."
+}
+,
+{
+  "asc_path": "data/examples_asc/series_rlc.asc",
+  "description": "A fundamental series RLC circuit using a 100 Ω resistor, a 10 mH inductor, and a 0.1 μF capacitor in series with a voltage source. The circuit demonstrates resonance at approximately 5 kHz."
+}
+,
+{
+  "asc_path": "data/examples_asc/parallel_rlc.asc",
+  "description": "A basic parallel RLC circuit using a 100 Ω resistor, a 10 mH inductor, and a 0.1 μF capacitor connected in parallel across a voltage source. The circuit illustrates resonance behavior at approximately 5 kHz."
+}
+,
+{
+  "asc_path": "data/examples_asc/rlc_bandpass.asc",
+  "description": "An RLC band-pass filter using a 100 Ω resistor, a 10 mH inductor, and a 0.1 μF capacitor. The circuit allows signals near 5 kHz to pass while attenuating frequencies outside this range."
+},
+{
+  "asc_path": "data/examples_asc/rlc_bandstop.asc",
+  "description": "An RLC band-stop (notch) filter using a 100 Ω resistor, a 10 mH inductor, and a 0.1 μF capacitor. The circuit attenuates signals near 5 kHz while allowing frequencies outside this range to pass."
+}
+
+,
   {
       "asc_path": "data/examples_asc/half_wave_rectifier.asc",
       "description": "A half-wave rectifier circuit that uses a single diode to convert an AC signal into pulsating DC."
