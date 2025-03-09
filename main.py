@@ -1,9 +1,10 @@
 import sys
+import os
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox
 )
-from PyQt5.QtCore import QPropertyAnimation, QEasingCurve, Qt, pyqtSlot
-from PyQt5.QtGui import QFont
+from PyQt5.QtCore import QPropertyAnimation, QEasingCurve, Qt, pyqtSlot, QTimer
+from PyQt5.QtGui import QFont, QPixmap
 
 # Import your custom modules
 from style import STYLE_SHEET, setup_fonts, COLORS
@@ -21,6 +22,12 @@ class MainWindow(QMainWindow):
         # Collapsed and expanded widths for the left panel
         self.left_panel_collapsed_width = 80
         self.left_panel_expanded_width = 0  # calculated at runtime
+        
+        # Current circuit file
+        self.current_circuit_file = None
+        
+        # Initialize simulation process
+        self.ltspice_process = None
 
         self.initUI()
         self.connectSignals()
@@ -135,11 +142,16 @@ class MainWindow(QMainWindow):
     def handle_message(self, message):
         """Handle messages from the chat panel."""
         print(f"Received message: {message}")
-        response = self.generate_dummy_response(message)
+        # In a real implementation, here we would:
+        # 1. Process the message, possibly with an AI model
+        # 2. Generate a response based on the circuit context
+        
+        # For now, use a simple rule-based response
+        response = self.generate_response(message)
         self.right_panel.receive_message(response)
 
-    def generate_dummy_response(self, message):
-        """Generate a dummy response for demonstration."""
+    def generate_response(self, message):
+        """Generate a response based on the user's message."""
         text = message.lower()
         if "hello" in text or "hi" in text:
             return "Hello! I'm ElectroNinja. How can I help with your circuit design?"
@@ -147,24 +159,77 @@ class MainWindow(QMainWindow):
             return "I can help you design and analyze circuits. What kind of circuit are you trying to build?"
         elif "ltspice" in text:
             return "LTspice is a powerful circuit simulation tool. You can use the editor button to open your design in LTSpice when you're ready."
+        elif "resistor" in text:
+            return "Resistors are fundamental components that limit current flow. Would you like me to add one to your circuit?"
+        elif "capacitor" in text:
+            return "Capacitors store electrical energy in an electric field. They're useful for filtering, timing circuits, and power supplies. Would you like me to add one to your circuit?"
+        elif "oscillator" in text:
+            return "I can help you design an oscillator circuit. Would you like a simple RC oscillator or something more complex like a crystal oscillator or Wien bridge?"
+        elif "filter" in text:
+            return "Filters are crucial for signal processing. I can help design low-pass, high-pass, band-pass, or notch filters. What frequency range are you targeting?"
         elif "help" in text:
             return "I can help you design circuits, analyze components, or explain electrical concepts. Please describe what you're trying to build!"
-        elif any(word in text for word in ["resistor", "capacitor", "inductor", "transistor", "diode"]):
-            return "I see you're asking about a specific component. Could you provide more details about your design?"
         else:
-            return "I'll analyze your request and help design the appropriate circuit. Could you provide more details about your requirements?"
+            return "I'll analyze your request and help design the appropriate circuit. Could you provide more specific details about your requirements?"
 
     def compile_circuit(self):
         """Compile the .asc code and update the circuit display."""
         asc_code = self.left_panel.code_editor.toPlainText()
+        if not asc_code.strip():
+            self.right_panel.receive_message("Please enter some circuit code first!")
+            return
+            
         print("Compiling circuit code...")
+        # Here, you would actually parse the ASC code and generate a preview
+        # For demonstration, we'll just show success and update the display text
+        
+        # In a real implementation, this would:
+        # 1. Save the .asc code to a temporary file
+        # 2. Run LTspice in command line mode to generate an image
+        # 3. Display the resulting image
+        
+        # Mock implementation:
         self.right_panel.receive_message("Circuit compiled successfully! You can see the result in the middle panel.")
-        self.middle_panel.circuit_display.setText("Circuit automatically generated and displayed here")
+        self.middle_panel.circuit_display.setText("Circuit preview would be displayed here")
+        
+        # Save the current circuit to a file
+        self.save_circuit()
+
+    def save_circuit(self):
+        """Save the current circuit to a file."""
+        if self.current_circuit_file is None:
+            # Create a new file with timestamp
+            import datetime
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            output_dir = f"output_{timestamp}"
+            
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+                
+            self.current_circuit_file = os.path.join(output_dir, "circuit.asc")
+        
+        # Save the ASC code
+        with open(self.current_circuit_file, 'w') as f:
+            f.write(self.left_panel.code_editor.toPlainText())
+            
+        self.right_panel.receive_message(f"Circuit saved to {self.current_circuit_file}")
 
     def edit_with_ltspice(self):
         """Open the current circuit in LTSpice."""
-        print("Opening circuit in LT Spice...")
+        # In a real implementation, this would:
+        # 1. Save the current circuit to a file if not already saved
+        # 2. Launch LTspice with the file path
+        
+        if not self.current_circuit_file:
+            self.save_circuit()
+            
+        print(f"Opening circuit in LT Spice: {self.current_circuit_file}")
         self.right_panel.receive_message("Opening circuit in LTSpice. This would launch the external application in a real implementation.")
+        
+        # Launch LTspice (this is platform-dependent)
+        # For Windows, you might use:
+        # import subprocess
+        # subprocess.Popen(["C:\\Program Files\\LTC\\LTspiceXVII\\XVIIx64.exe", self.current_circuit_file])
 
 def main():
     app = QApplication(sys.argv)

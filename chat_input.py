@@ -66,6 +66,13 @@ class ChatInputWidget(QWidget):
             min_height=40  # Matches the send button's fixed height
         )
         self.message_input.setPlaceholderText("Type your message...")
+        self.message_input.setStyleSheet("""
+            background-color: #2B2B2B;
+            color: white;
+            border: 1px solid #3C3C3C;
+            border-radius: 8px;
+            padding: 8px;
+        """)
         text_layout.addWidget(self.message_input, alignment=Qt.AlignBottom)
 
         layout.addWidget(text_container, 1)
@@ -73,6 +80,7 @@ class ChatInputWidget(QWidget):
         # Create the send button with fixed dimensions (70x40) so it matches the text edit.
         self.send_button = QPushButton("Send", self)
         self.send_button.setFixedSize(70, 40)
+        self.send_button.setObjectName("send_button")  # Preserve styling
         layout.addWidget(self.send_button, 0, alignment=Qt.AlignBottom)
 
         # Connect the button and enter key to sending the message.
