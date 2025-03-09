@@ -4,6 +4,21 @@
       "description": "Two resistors in parallel, each 2 ohms, with a DC source of 5V."
   },
   {
+    "asc_path": "data/examples_asc/series_resistors.asc",
+    "description": "A simple resistor network where three resistors (1kΩ, 2.2kΩ, and 4.7kΩ) are connected in series across a 5V DC voltage source. The total resistance is the sum of all resistors."
+}
+,
+{
+  "asc_path": "data/examples_asc/mixed_series_parallel.asc",
+  "description": "A resistor network combining series and parallel resistors. Two 2kΩ resistors are in parallel, followed by a 5kΩ resistor in series, forming a mixed network, powered by 10V DC supply."
+}
+,
+{
+  "asc_path": "data/examples_asc/ladder_resistor_network.asc",
+  "description": "A ladder resistor network alternating between series and parallel resistors, commonly used in digital-to-analog converters (DACs) and resistor ladder circuits, a dummy 1V DC supply is used."
+}
+,
+  {
       "asc_path": "data/examples_asc/rc_filter.asc",
       "description": "A simple RC filter with a 10 kΩ resistor and a 0.1 μF capacitor."
   },
