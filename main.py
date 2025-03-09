@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import QPropertyAnimation, QEasingCurve, Qt, pyqtSlot, QTimer, QThread, pyqtSignal
 from PyQt5.QtGui import QFont
 
-# Import your custom modules
+# Import custom modules
 from electroninja.gui.style import STYLE_SHEET, setup_fonts, COLORS
 from electroninja.gui.top_bar import TopBar
 from electroninja.gui.left_panel import LeftPanel
@@ -42,6 +42,9 @@ class MainWindow(QMainWindow):
         
         # Initialize simulation process (if needed later)
         self.ltspice_process = None
+
+        # Conversation history: list of messages (each as a dict)
+        self.conversation_history = []  # e.g., {"role": "user"/"assistant", "content": "..."}
 
         # Instantiate our ChatManager (LLM integration)
         self.chat_manager = ChatManager()
@@ -137,8 +140,11 @@ class MainWindow(QMainWindow):
     @pyqtSlot(str)
     def handle_message(self, message):
         print(f"Received message: {message}")
-        # The RightPanel already adds the user's message as a bubble immediately.
-        # Now, if the message is circuit-related, we proceed with LLM calls.
+        # Immediately store the user's message in the conversation history.
+        self.conversation_history.append({"role": "user", "content": message})
+        
+        # The RightPanel already displays the user's message as a bubble.
+        # Now, if the message is circuit-related, proceed with LLM calls.
         if any(kw in message.lower() for kw in ["circuit", "resistor", "capacitor", "oscillator", "filter"]):
             self.circuit_request_prompt = message
             print(f"Stored circuit prompt: {self.circuit_request_prompt}")
@@ -153,20 +159,23 @@ class MainWindow(QMainWindow):
             self.ascWorker.resultReady.connect(self.on_asc_code_ready)
             self.ascWorker.start()
         else:
-            # For non-circuit messages, use a simple rule-based response.
             response = self.generate_response(message)
             self.right_panel.receive_message(response)
+            self.conversation_history.append({"role": "assistant", "content": response})
 
     def on_chat_response_ready(self, response):
         # Called when the friendly chat response is ready.
         self.right_panel.receive_message(response)
+        self.conversation_history.append({"role": "assistant", "content": response})
 
     def on_asc_code_ready(self, asc_code):
         # Called when the .asc code is ready.
         if asc_code and asc_code != "N":
             self.left_panel.code_editor.setText(asc_code)
+            self.conversation_history.append({"role": "assistant", "content": f"Generated ASC Code:\n{asc_code}"})
         else:
             self.left_panel.code_editor.setText("")
+            self.conversation_history.append({"role": "assistant", "content": "No valid ASC code generated; query deemed irrelevant."})
 
     def generate_response(self, message):
         text = message.lower()
@@ -200,12 +209,14 @@ class MainWindow(QMainWindow):
         with open(self.current_circuit_file, 'w') as f:
             f.write(self.left_panel.code_editor.toPlainText())
         self.right_panel.receive_message(f"Circuit saved to {self.current_circuit_file}")
+        self.conversation_history.append({"role": "system", "content": f"Circuit saved to {self.current_circuit_file}"})
 
     def edit_with_ltspice(self):
         if not self.current_circuit_file:
             self.save_circuit()
         print(f"Opening circuit in LTSpice: {self.current_circuit_file}")
         self.right_panel.receive_message("Opening circuit in LTSpice. This would launch the external application in a real implementation.")
+        self.conversation_history.append({"role": "system", "content": "Launching LTSpice with the current circuit."})
 
 def main():
     app = QApplication(sys.argv)
