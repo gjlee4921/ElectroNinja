@@ -1,5 +1,3 @@
-# electroninja/llm/vision.py
-
 import os
 import base64
 from dotenv import load_dotenv
@@ -12,7 +10,7 @@ openai.api_key = OPENAI_API_KEY
 class VisionManager:
     """
     Manages vision-based interactions with an OpenAI model that supports image inputs.
-    Example usage: checking if a generated circuit image matches the user's request.
+    This is used to check if a generated circuit image (PNG) matches the user's request.
     """
 
     def __init__(self, model: str = "gpt-4o-mini"):
@@ -31,11 +29,10 @@ class VisionManager:
         :param detail: The detail level for image analysis ('low', 'high', or 'auto').
         :return: The model's response as a string.
         """
-        # 1. Base64-encode the image
+        # Always expect PNG images
         with open(image_path, "rb") as img_file:
             encoded_image = base64.b64encode(img_file.read()).decode("utf-8")
 
-        # 2. Build the messages array for the Chat Completions API
         messages = [
             {
                 "role": "user",
@@ -46,7 +43,9 @@ class VisionManager:
                             f"User's circuit request: {user_request}\n\n"
                             "Below is an image of the circuit. "
                             "Does this circuit image match the user's request? "
-                            "Please analyze carefully and explain."
+                            "If yes, then just write a 'Y' as your response; "
+                            "otherwise, explain clearly and analytically why the circuit doesn't match "
+                            "and what changes should be made."
                         )
                     },
                     {
@@ -60,13 +59,11 @@ class VisionManager:
             }
         ]
 
-        # 3. Call the OpenAI Chat Completions endpoint
         try:
             response = openai.ChatCompletion.create(
                 model=self.model,
                 messages=messages,
-                max_tokens=1000,
-                temperature=0.2,  # tweak as needed
+                temperature=0.2,  # Low temperature makes the response more deterministic.
                 store=True
             )
             return response.choices[0].message.content.strip()
