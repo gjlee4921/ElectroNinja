@@ -14,6 +14,7 @@ from electroninja.gui.right_panel import RightPanel
 from electroninja.llm.chat_manager import ChatManager, general, asc_generation_prompt, user_prompt, safety_for_agent
 from electroninja.llm.vector_db import VectorDB
 
+# Worker class for asynchronous LLM calls
 class LLMWorker(QThread):
     resultReady = pyqtSignal(str)
     def __init__(self, func, prompt):
@@ -38,12 +39,16 @@ class MainWindow(QMainWindow):
         
         self.ltspice_process = None
         
+        # Conversation history: stores only outputs from o3-mini (ASC code attempts)
         self.conversation_history = []
         self.attempt_counter = 0
 
         self.chat_manager = ChatManager()
-        self.vector_db = VectorDB()
+        self.vector_db = VectorDB()  # Create a new instance
+        # Load the saved FAISS index and metadata from disk.
+        self.vector_db.load_index("faiss_index.bin", "metadata_list.pkl")
 
+        # For debugging: always print the prompt before sending to o3-mini.
         self.always_print_prompt = True
 
         self.initUI()
@@ -126,6 +131,7 @@ class MainWindow(QMainWindow):
         self.adjustPanelWidths()
 
     def build_prompt(self, user_request: str) -> str:
+        # Retrieve top 3 examples from the FAISS vector DB.
         results = self.vector_db.search(user_request, top_k=3)
         examples_text = ""
         for i, res in enumerate(results, start=1):

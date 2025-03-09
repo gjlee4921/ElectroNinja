@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 import openai
 
-# Load environment variables and set API key on the module-level client
+# Load environment variables and set the API key on the module-level client.
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
@@ -24,16 +24,17 @@ user_prompt = "Your customer's request is:"
 
 class ChatManager:
     """
-    Provides separate methods for obtaining LLM responses.
+    Provides methods for obtaining LLM responses:
       - get_asc_code() returns the .asc code for the circuit (from o3-mini).
       - get_chat_response() returns a friendly chat response for the client (from gpt-4o-mini).
     """
 
     def get_asc_code(self, prompt: str) -> str:
         """
-        Generate the .asc code based on the provided prompt.
-        :param prompt: The complete prompt (including examples and the user request).
-        :return: The .asc code as a string, or "N" if the query is deemed irrelevant.
+        Generates the .asc code based on the provided prompt.
+        
+        :param prompt: The complete prompt including examples and the user's request.
+        :return: The generated ASC code as a string, or "N" if the query is deemed irrelevant.
         """
         try:
             asc_resp = openai.ChatCompletion.create(
@@ -47,9 +48,10 @@ class ChatManager:
 
     def get_chat_response(self, user_input: str) -> str:
         """
-        Generate a friendly chat response for the client.
+        Generates a friendly chat response for the client.
+        
         :param user_input: The client's request.
-        :return: The chat response as a string.
+        :return: The generated chat response as a string.
         """
         chat_prompt = (
             f"{general}\n"

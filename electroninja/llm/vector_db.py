@@ -3,6 +3,7 @@ import openai
 import numpy as np
 from dotenv import load_dotenv
 from typing import List, Dict, Any, Optional
+import pickle
 
 # Load environment variables (including OPENAI_API_KEY)
 load_dotenv()
@@ -42,9 +43,7 @@ class VectorDB:
         :param text: The text to embed (e.g., combined description and ASC code).
         :return: A numpy array (dtype=np.float32) representing the embedding.
         """
-        # Remove newlines to reduce noise.
         text = text.replace("\n", " ")
-        # Pass the input as a list (required in openai==0.28)
         response = openai.Embedding.create(
             input=[text],
             model=self.embedding_model
@@ -79,17 +78,19 @@ class VectorDB:
         :return: A list of dictionaries, each containing the stored 'asc_code', metadata, and similarity 'score'.
         """
         if len(self.metadata_list) == 0:
-            # No documents have been added.
+            print("No documents in the database.")
             return []
         
         query_vector = self.embed_text(query_text)
         query_vector = np.expand_dims(query_vector, axis=0)
         distances, indices = self.index.search(query_vector, top_k)
         
+        print("FAISS search results:")
+        print("Indices:", indices)
+        print("Distances:", distances)
+        
         results = []
-        # Loop over the returned indices.
         for i, idx in enumerate(indices[0]):
-            # Check for invalid index (FAISS returns -1 if not enough documents)
             if idx == -1 or idx >= len(self.metadata_list):
                 continue
             results.append({
@@ -98,3 +99,32 @@ class VectorDB:
                 "score": distances[0][i]
             })
         return results
+
+    def save_index(self, index_path: str, metadata_path: str):
+        """
+        Saves the FAISS index and metadata list to disk.
+        
+        :param index_path: File path to save the FAISS index.
+        :param metadata_path: File path to save the metadata list.
+        """
+        import faiss
+        faiss.write_index(self.index, index_path)
+        with open(metadata_path, "wb") as f:
+            pickle.dump(self.metadata_list, f)
+        print(f"Index and metadata saved to {index_path} and {metadata_path}.")
+
+    def load_index(self, index_path: str, metadata_path: str):
+        """
+        Loads the FAISS index and metadata list from disk.
+        
+        :param index_path: File path from which to load the FAISS index.
+        :param metadata_path: File path from which to load the metadata list.
+        """
+        import faiss
+        if os.path.exists(index_path) and os.path.exists(metadata_path):
+            self.index = faiss.read_index(index_path)
+            with open(metadata_path, "rb") as f:
+                self.metadata_list = pickle.load(f)
+            print(f"Loaded index with {len(self.metadata_list)} documents from {index_path} and {metadata_path}.")
+        else:
+            print("Saved index or metadata file not found.")

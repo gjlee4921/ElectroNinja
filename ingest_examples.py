@@ -22,8 +22,10 @@ def ingest_examples():
             db.add_document(combined_text, metadata={"asc_path": asc_path, "description": description})
         else:
             print(f"File not found: {asc_path}")
-
+    
     print(f"Ingestion complete. Total documents: {len(db.metadata_list)}")
+    # Save the index and metadata to disk
+    db.save_index("faiss_index.bin", "metadata_list.pkl")
 
 if __name__ == "__main__":
     ingest_examples()
