@@ -45,6 +45,12 @@ ElectroNinja is an interactive circuit design assistant built with Python and Py
 - **chat_panel.py**  
   Implements a scrollable chat panel for displaying conversation history with adaptive bubble sizing.
 
+## Prerequisites
+
+### LTSpice Installation
+
+Ensure that LTSpice is installed on your system. You can download it from the [Analog Devices LTSpice page](https://www.analog.com/en/design-center/design-tools-and-calculators/ltspice-simulator.html). This tool is required for simulating and previewing circuit designs.
+
 ## Installation
 
 1. **Clone the repository:**
@@ -60,8 +66,13 @@ ElectroNinja is an interactive circuit design assistant built with Python and Py
 
 3. **Set Up Environment Variables**
 
-Create a file named `.env` in the root directory of the project and add your OpenAI API key:
+  Create a file named `.env` in the root directory of the project and add your OpenAI API key:
 
-  ```env
+  ```bash
   OPENAI_API_KEY=your_openai_api_key_here
+
+
+
+
+
 
