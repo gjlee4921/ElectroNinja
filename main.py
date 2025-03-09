@@ -80,13 +80,11 @@ class MainWindow(QMainWindow):
     def on_left_panel_toggle(self, is_expanding):
         """Handle the toggle button to expand/collapse the left panel."""
         if is_expanding:
-            # Expand from current maxWidth to expanded width
             current_width = self.left_panel.maximumWidth()
             self.adjustPanelWidths()  # Recalculate expanded width
             self.left_panel.showCodeEditor()
             self.animate_left_panel(current_width, self.left_panel_expanded_width)
         else:
-            # Collapse from current maxWidth to collapsed width
             current_width = self.left_panel.maximumWidth()
             self.animate_left_panel(current_width, self.left_panel_collapsed_width)
             self.left_panel.hideCodeEditor()

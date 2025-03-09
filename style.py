@@ -188,7 +188,5 @@ def setup_fonts(app):
     """Setup custom fonts if IMPORT_FONTS is True"""
     if IMPORT_FONTS:
         from PyQt5.QtGui import QFontDatabase
-        # You would add local font files here
-        # Example: QFontDatabase.addApplicationFont("path/to/font.ttf")
-        # For now we'll use system fonts that are likely to be available
+        # Add local font files here if desired
         pass
