@@ -8,8 +8,14 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import QIcon, QFont
 
 class LeftPanel(QFrame):
+    """
+    The LeftPanel displays/edits ASC code and compiles it via circuit_saver.
+    Once circuit_saver completes, it emits an imageGenerated signal with
+    the final PNG path so that the MiddlePanel can update the display.
+    """
     toggleRequested = pyqtSignal(bool)
-    imageGenerated = pyqtSignal(str) 
+    imageGenerated = pyqtSignal(str)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.is_expanded = True
@@ -53,29 +59,41 @@ class LeftPanel(QFrame):
         # Compile button
         self.compile_button = QPushButton("Compile Circuit", self)
         self.compile_button.setObjectName("compile_button")
-        self.compile_button.clicked.connect(self.compile_and_save_circuit)  # Connect function
+        self.compile_button.clicked.connect(self.compile_and_save_circuit)
         main_layout.addWidget(self.compile_button)
 
     def compile_and_save_circuit(self):
-        """Handles compiling, saving, passing to circuit_saver, and cleanup."""
+        """
+        Handles compiling, saving, passing to circuit_saver, and then
+        emitting the final image path so that the MiddlePanel can show it.
+        """
         circuit_text = self.code_editor.toPlainText().strip()
         if not circuit_text:
             print("No circuit code entered.")
             return
 
         # Create a temporary file in the current directory
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".asc", mode="w", dir=os.getcwd()) as temp_file:
+        import tempfile
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".asc", mode="w", dir=os.getcwd())
+        try:
             temp_file.write(circuit_text)
-            temp_file_path = temp_file.name  # Store the file path
+            temp_file_path = temp_file.name
+        finally:
+            temp_file.close()
 
         print(f"Temporary file created: {temp_file_path}")
 
+        # Import circuit_saver and process the schematic
         from electroninja.circuits.circuit_saver import circuit_saver
-        _, img = circuit_saver(temp_file_path)
+        _, img_path = circuit_saver(temp_file_path)
 
-        self.imageGenerated.emit(img)
+        # Emit the final PNG path so the MiddlePanel can update its display
+        if img_path and os.path.exists(img_path):
+            self.imageGenerated.emit(img_path)
+        else:
+            print("No PNG image was generated or file path invalid.")
 
-        # Delete the temporary file after usage
+        # Clean up the temporary file
         try:
             os.remove(temp_file_path)
             print(f"Temporary file deleted: {temp_file_path}")
@@ -88,3 +106,9 @@ class LeftPanel(QFrame):
         self.toggleRequested.emit(is_checked)
         self.toggle_button.setArrowType(Qt.LeftArrow if is_checked else Qt.RightArrow)
         self.toggle_button.setText("Hide" if is_checked else "Show")
+
+    def showCodeEditor(self):
+        self.code_editor.show()
+
+    def hideCodeEditor(self):
+        self.code_editor.hide()

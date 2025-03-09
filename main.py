@@ -1,7 +1,5 @@
-import sys, os, datetime, time
-from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout
-)
+import sys, os, time
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout
 from PyQt5.QtCore import QPropertyAnimation, QEasingCurve, Qt, pyqtSlot, QThread, pyqtSignal
 from PyQt5.QtGui import QFont
 
@@ -13,6 +11,7 @@ from electroninja.gui.middle_panel import MiddlePanel
 from electroninja.gui.right_panel import RightPanel
 from electroninja.llm.chat_manager import ChatManager, general, asc_generation_prompt, user_prompt, safety_for_agent
 from electroninja.llm.vector_db import VectorDB
+from electroninja.llm.vision import VisionManager
 
 # Worker class for asynchronous LLM calls
 class LLMWorker(QThread):
@@ -33,23 +32,25 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("ElectroNinja - Electrical Engineer Agent")
         self.setGeometry(100, 50, 1400, 800)
 
+        # Panel widths
         self.left_panel_collapsed_width = 80
         self.left_panel_expanded_width = 0
 
+        # Circuit / LLM states
         self.current_circuit_file = None
         self.circuit_request_prompt = None
-        self.ltspice_process = None
-        self.conversation_history = []
+        self.conversation_history = []  # Stores ASC attempts and vision feedback
         self.attempt_counter = 0
+        self.max_iterations = 5
 
+        # Initialize managers
         self.chat_manager = ChatManager()
         self.vector_db = VectorDB()
-        # Load saved FAISS index and metadata (if available)
         print("Loading FAISS index and metadata...")
         self.vector_db.load_index("faiss_index.bin", "metadata_list.pkl")
         print("FAISS index loaded.")
 
-        # For debugging: print prompt before sending to o3-mini.
+        self.vision_manager = VisionManager(model="gpt-4o-mini")
         self.always_print_prompt = True
 
         self.initUI()
@@ -77,7 +78,6 @@ class MainWindow(QMainWindow):
         self.middle_panel = MiddlePanel(self)
         self.right_panel = RightPanel(self)
 
-        # Set size policies and initial widths
         self.left_panel.setMinimumWidth(self.left_panel_collapsed_width)
         self.left_panel.setMaximumWidth(300)
 
@@ -85,16 +85,14 @@ class MainWindow(QMainWindow):
         self.main_layout.addWidget(self.middle_panel)
         self.main_layout.addWidget(self.right_panel)
 
+        # Connect left panel's signals to update the UI
         self.left_panel.toggleRequested.connect(self.on_left_panel_toggle)
-        # Connect the left panel's imageGenerated signal to update the middle panel's image
         self.left_panel.imageGenerated.connect(self.middle_panel.set_circuit_image)
         print("UI initialized.")
 
     def connectSignals(self):
         self.right_panel.messageSent.connect(self.handle_message)
-        # The compile button now just saves the file and can be used for manual triggering
         self.left_panel.compile_button.clicked.connect(self.compile_circuit)
-        # The "Edit with LTSpice" button can be used manually too
         self.middle_panel.edit_button.clicked.connect(self.edit_with_ltspice)
         print("Signals connected.")
 
@@ -137,19 +135,15 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
         self.adjustPanelWidths()
 
-    def build_prompt(self, user_request: str) -> str:
-        print("Building prompt from user request and vector DB examples...")
-        # Retrieve top 3 examples from the FAISS vector DB.
+    def build_initial_prompt(self, user_request: str) -> str:
+        print("Building initial prompt using RAG from the vector DB...")
         results = self.vector_db.search(user_request, top_k=3)
         examples_text = ""
         for i, res in enumerate(results, start=1):
             desc = res["metadata"].get("description", "No description")
             asc_code = res["asc_code"]
             examples_text += (
-                f"Example {i}:\n"
-                f"Description: {desc}\n"
-                "ASC Code:\n-----------------\n"
-                f"{asc_code}\n-----------------\n\n"
+                f"Example {i}:\nDescription: {desc}\nASC Code:\n-----------------\n{asc_code}\n-----------------\n\n"
             )
         prompt = (
             f"{general}\n\n"
@@ -159,7 +153,27 @@ class MainWindow(QMainWindow):
             "Now, based on the examples above, generate the complete .asc code for a circuit that meets the user's request.\n"
             "Your answer must contain only valid .asc code with no additional explanation."
         )
-        print("Prompt built.")
+        print("Initial prompt built.")
+        return prompt
+
+    def build_refinement_prompt(self) -> str:
+        """
+        Builds a prompt for refinement using the conversation history and vision feedback.
+        """
+        prompt = "Below are previous attempts and feedback:\n\n"
+        for item in self.conversation_history:
+            if "asc_code" in item:
+                prompt += f"Attempt {item.get('attempt', item.get('iteration', '?'))} ASC code:\n{item['asc_code']}\n\n"
+            if "vision_feedback" in item:
+                prompt += f"Vision feedback (Iteration {item.get('iteration','?')}): {item['vision_feedback']}\n\n"
+        prompt += f"Original user's request: {self.circuit_request_prompt}\n\n"
+        prompt += (
+            "Based on the above attempts and feedback, please provide a revised complete .asc code "
+            "for a circuit that meets the original user's request. "
+            "Your answer must contain only valid .asc code with no additional explanation."
+        )
+        print("Refinement prompt built:")
+        print(prompt)
         return prompt
 
     @pyqtSlot(str)
@@ -170,17 +184,14 @@ class MainWindow(QMainWindow):
             print(f"Stored circuit prompt: {self.circuit_request_prompt}")
             self.attempt_counter += 1
 
-            # Build final prompt using examples from the vector DB
-            final_prompt = self.build_prompt(self.circuit_request_prompt)
+            final_prompt = self.build_initial_prompt(self.circuit_request_prompt)
             print("=== Prompt to o3-mini ===")
             print(final_prompt)
 
-            # Call o3-mini for ASC code generation.
             self.ascWorker = LLMWorker(self.chat_manager.get_asc_code, final_prompt)
             self.ascWorker.resultReady.connect(self.on_asc_code_ready)
             self.ascWorker.start()
 
-            # Also call 4o-mini for a friendly chat response.
             self.chatWorker = LLMWorker(self.chat_manager.get_chat_response, message)
             self.chatWorker.resultReady.connect(lambda response: self.right_panel.receive_message(response))
             self.chatWorker.start()
@@ -189,23 +200,17 @@ class MainWindow(QMainWindow):
             self.right_panel.receive_message(response)
 
     def on_asc_code_ready(self, asc_code):
-        print("ASC code generated by o3-mini:")
+        print("Initial ASC code generated by o3-mini:")
         print(asc_code)
         if asc_code and asc_code != "N":
-            # Put generated code in left panel
             self.left_panel.code_editor.setText(asc_code)
-            self.conversation_history.append({
-                "attempt": self.attempt_counter,
-                "asc_code": asc_code
-            })
-            # Save the circuit to a file and run the LTSpice process
+            self.conversation_history.append({"attempt": self.attempt_counter, "asc_code": asc_code})
             print("Saving generated ASC code to file...")
             self.save_circuit()
-            # Use a slight delay to ensure the file is written before processing
-            print("Waiting a moment before launching LTSpice...")
+            print("Waiting a moment before launching LTSpice for the first evaluation...")
             QThread.sleep(1)
-            print("Launching LTSpice processing...")
-            self.run_ltspice_process()
+            print("Launching LTSpice processing for initial evaluation...")
+            self.run_feedback_loop(iteration=1)
         else:
             self.left_panel.code_editor.setText("")
             self.conversation_history.append({
@@ -234,51 +239,97 @@ class MainWindow(QMainWindow):
         self.save_circuit()
 
     def save_circuit(self):
-        """Saves the ASC code from the left panel to a timestamped file."""
-        if self.current_circuit_file is None:
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            output_dir = os.path.join(os.getcwd(), f"output_{timestamp}")
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-                print(f"Created output directory: {output_dir}")
-            self.current_circuit_file = os.path.join(output_dir, "circuit.asc")
-        with open(self.current_circuit_file, 'w') as f:
+        """
+        Saves the ASC code from the left panel to a fixed directory (data/output),
+        overwriting 'circuit.asc'. Uses UTF-8 encoding.
+        """
+        output_dir = os.path.join(os.getcwd(), "data", "output")
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            print(f"Created output directory: {output_dir}")
+        self.current_circuit_file = os.path.join(output_dir, "circuit.asc")
+        with open(self.current_circuit_file, 'w', encoding='utf-8') as f:
             f.write(self.left_panel.code_editor.toPlainText())
         print(f"Circuit saved to {self.current_circuit_file}")
         self.right_panel.receive_message(f"Circuit saved to {self.current_circuit_file}")
-        self.conversation_history.append({"role": "system", "content": f"Circuit saved to {self.current_circuit_file}"})
+        self.conversation_history.append({
+            "role": "system",
+            "content": f"Circuit saved to {self.current_circuit_file}"
+        })
 
-    def run_ltspice_process(self):
-        """Calls circuit_saver with the current ASC file to run LTSpice and update the UI with the screenshot."""
-        print("Running LTSpice process via circuit_saver...")
+    def run_feedback_loop(self, iteration):
+        """
+        Runs a feedback loop using LTSpice and the vision model to refine the circuit.
+        Maximum iterations defined by self.max_iterations.
+        """
+        print(f"Starting feedback loop, iteration {iteration}...")
         from electroninja.circuits.circuit_saver import circuit_saver
         result = circuit_saver(self.current_circuit_file)
         if result:
             asc_path, png_file = result
             print("LTSpice processing finished. Checking updated files...")
-            # Update left panel with the possibly modified ASC code from LTSpice
             if os.path.exists(asc_path):
-                with open(asc_path, "r") as f:
+                with open(asc_path, "r", encoding='utf-8', errors='replace') as f:
                     updated_circuit_text = f.read()
                 print("Updating left panel with LTSpice-modified ASC code.")
                 self.left_panel.code_editor.setText(updated_circuit_text)
-            # Emit signal so that middle panel displays the screenshot
-            if png_file and os.path.exists(png_file):
-                print(f"Emitting imageGenerated signal with PNG file: {png_file}")
-                self.left_panel.imageGenerated.emit(png_file)
+            if os.path.exists(png_file):
+                print("Updating middle panel with new circuit screenshot.")
+                self.middle_panel.set_circuit_image(png_file)
+            self.right_panel.receive_message("Analyzing circuit image with vision model...")
+            vision_feedback = self.vision_manager.analyze_circuit_image(png_file, self.circuit_request_prompt)
+            print(f"Vision feedback (Iteration {iteration}): {vision_feedback}")
+            status_update = self.chat_manager.get_status_update(self.conversation_history, vision_feedback, iteration)
+            self.right_panel.receive_message(status_update)
+            self.conversation_history.append({"iteration": iteration, "vision_feedback": vision_feedback})
+            print("=== Conversation History After This Iteration ===")
+            for i, item in enumerate(self.conversation_history, start=1):
+                print(f"Item {i}: {item}")
+            print("=================================================")
+            if vision_feedback.strip().upper() == "Y":
+                self.right_panel.receive_message("Circuit verified successfully!")
+                print("Circuit verified successfully by vision model.")
+                self.print_final_history()
+                return
+            elif iteration >= self.max_iterations:
+                failure_msg = self.chat_manager.get_chat_response("Circuit refinement failed after maximum iterations.")
+                self.right_panel.receive_message(failure_msg)
+                print("Maximum iterations reached. Circuit refinement failed.")
+                self.print_final_history()
+                return
             else:
-                print("PNG file not found after LTSpice processing.")
+                refinement_prompt = self.chat_manager.refine_asc_code(self.conversation_history, self.circuit_request_prompt)
+                self.right_panel.receive_message(f"Refining circuit (Iteration {iteration}) based on feedback...")
+                print("Refinement prompt to o3-mini:")
+                print(refinement_prompt)
+                new_asc_code = self.chat_manager.get_asc_code(refinement_prompt)
+                print(f"New ASC code from refinement (Iteration {iteration}):")
+                print(new_asc_code)
+                self.left_panel.code_editor.setText(new_asc_code)
+                self.conversation_history.append({"iteration": iteration, "asc_code": new_asc_code})
+                self.save_circuit()
+                print("Waiting a moment before re-running LTSpice processing...")
+                QThread.sleep(1)
+                self.run_feedback_loop(iteration + 1)
         else:
             self.right_panel.receive_message("Error: LTSpice processing failed.")
-            print("Error: LTSpice processing failed.")
+            print("Error: LTSpice processing failed in feedback loop.")
+            self.print_final_history()
+
+    def print_final_history(self):
+        """Prints the final conversation history at the end of the loop."""
+        print("=== FINAL CONVERSATION HISTORY ===")
+        for i, item in enumerate(self.conversation_history, start=1):
+            print(f"Item {i}: {item}")
+        print("==================================")
 
     def edit_with_ltspice(self):
-        """Optional manual trigger to run the LTSpice process."""
+        """Manual trigger to run the feedback loop."""
         if not self.current_circuit_file:
             self.save_circuit()
-        self.right_panel.receive_message("Opening circuit in LTSpice. Please wait while the schematic is processed.")
-        print("Manual trigger: Running LTSpice process...")
-        self.run_ltspice_process()
+        self.right_panel.receive_message("Manual trigger: Running LTSpice processing for circuit refinement...")
+        print("Manual trigger: Running LTSpice processing...")
+        self.run_feedback_loop(iteration=1)
 
 def main():
     app = QApplication(sys.argv)
