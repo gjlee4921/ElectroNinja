@@ -44,6 +44,7 @@ def circuit_saver(original_asc_file, new_window = True):
             ltspice_window = window
             break
 
+
     if ltspice_window:
         print(f"✅ Found LTSpice window: {ltspice_window.title}")
 

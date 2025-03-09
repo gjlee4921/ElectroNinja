@@ -21,9 +21,9 @@ class VisionManager:
             f"User's circuit request: {user_request}\n\n"
             "Below is an image of a circuit schematic. Please perform the following steps:\n"
             "1. List the circuit components you see in the image along with their values.\n"
-            "2. Determine if the circuit exactly meets the user's request (i.e. it should have exactly the specified components with correct values and no extras).\n"
-            "3. If it matches perfectly, reply with a single letter 'Y'. Otherwise, explain clearly which components are missing or incorrect. Or if wires are missing point them out\n"
-            "For example, if the request is '1 resistor 10 ohms and 1 battery 5V', then the circuit must have exactly one resistor labeled 10 ohms and one battery labeled 5V.\n"
+            "2. Determine if the circuit exactly meets the user's request (i.e., it should have exactly the specified components with the correct values and no extras).\n"
+            "3. If it matches perfectly, reply with only the letter 'Y'. Otherwise, explain clearly which components are missing or incorrect.\n"
+            "For example, if the request is '1 resistor 10 ohms and 1 battery 5V', then if the circuit is correct, your response should be just: Y"
         )
         messages = [
             {
