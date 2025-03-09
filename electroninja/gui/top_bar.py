@@ -12,32 +12,50 @@ class TopBar(QFrame):
 
     def initUI(self):
         # Simple background with no borders or extras
-        self.setStyleSheet("background-color: #4B2F4C; border-radius: 10px; border: none;")
+        self.setStyleSheet("""
+            background-color: #4B2F4C; 
+            border-radius: 10px; 
+            border: none;
+        """)
         
-        # Main layout with plenty of space
+        # Main layout with increased margins
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(20, 15, 20, 15)  # More vertical space to prevent text cutoff
+        layout.setContentsMargins(20, 10, 20, 10)
         
         # Center the title with stretchers
         layout.addStretch(1)
         
-        # ElectroNinja title - WHITE text
+        # ElectroNinja title
         self.title = QLabel("ElectroNinja", self)
         
-        # Direct styling instead of using stylesheet
-        font = QFont("Segoe UI", 30)
+        # Use QFont directly with increased size and weight
+        font = QFont("Segoe UI", 28)  # Slightly reduced font size
         font.setBold(True)
-        font.setLetterSpacing(QFont.AbsoluteSpacing, 1)
+        font.setWeight(75)  # Explicitly set weight
         self.title.setFont(font)
-        self.title.setStyleSheet("color: white; background: transparent; padding: 0px;")
         
+        # More specific styling with z-order
+        self.title.setStyleSheet("""
+            color: white; 
+            background: transparent; 
+            padding: 2px; 
+            margin: 0px;
+        """)
+        
+        # Set alignment and size policy
+        self.title.setAlignment(Qt.AlignCenter)
+        self.title.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        
+        # Add the title to the layout
         layout.addWidget(self.title)
         layout.addStretch(1)
         
-        # Version label
+        # Version label - slightly adjusted placement
         self.version_label = QLabel("v1.0", self)
         self.version_label.setStyleSheet("color: white; font-size: 14px; background: transparent;")
+        self.version_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         layout.addWidget(self.version_label)
         
-        # Increased height to ensure text fits
-        self.setFixedHeight(80)
+        # Ensure enough height
+        self.setMinimumHeight(80)
+        self.setMaximumHeight(80)  # Fix the height to prevent layout shifts
