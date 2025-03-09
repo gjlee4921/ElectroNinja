@@ -60,26 +60,7 @@
   "description": "A half-wave rectifier circuit using a 1N4007 diode and a 470 µF capacitor to convert a 12V RMS AC signal into a pulsating DC output. The capacitor helps to smooth the output by reducing voltage ripple. This version does not include a dedicated load resistor."
 }
 ,
-  {
-      "asc_path": "data/examples_asc/full_wave_rectifier_with_filter.asc",
-      "description": "A full-wave rectifier combined with a capacitor filter to smooth the DC output from an AC input."
-  },
-  {
-      "asc_path": "data/examples_asc/series_lc_resonant.asc",
-      "description": "A series LC resonant circuit using an inductor and capacitor in series to highlight resonant behavior in AC circuits."
-  },
-  {
-      "asc_path": "data/examples_asc/parallel_lc_tank.asc",
-      "description": "A parallel LC tank circuit that resonates at a specific frequency, commonly used in RF applications."
-  },
-  {
-      "asc_path": "data/examples_asc/diode_clipper.asc",
-      "description": "A diode clipper circuit that limits the amplitude of an AC signal by clipping its peaks using diodes and resistors."
-  },
-  {
-      "asc_path": "data/examples_asc/diode_clamper.asc",
-      "description": "A diode clamper circuit that shifts the DC level of an AC signal without changing its overall shape."
-  },
+
   {
       "asc_path": "data/examples_asc/zener_regulator.asc",
       "description": "A voltage regulator circuit using a Zener diode and resistor to maintain a constant DC voltage."
