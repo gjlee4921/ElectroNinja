@@ -27,9 +27,6 @@ ElectroNinja is an interactive circuit design assistant built with Python and Py
 - **main.py**  
   The primary application entry point for the full ElectroNinja experience, which integrates the chat manager, vector DB, and GUI components.
 
-- **main_test.py**  
-  A test version of the main application using a `FakeChatManager` to simulate LLM responses.
-
 - **retrieve.py**  
   A command-line tool to perform semantic searches over stored circuit examples.
 
@@ -55,3 +52,9 @@ ElectroNinja is an interactive circuit design assistant built with Python and Py
    ```bash
    git clone https://github.com/yourusername/electroninja.git
    cd electroninja
+
+2. **Install the dependencies**
+
+   ```bash
+   pip install -r requirements.txt
+
