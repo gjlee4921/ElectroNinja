@@ -45,7 +45,7 @@ class VisionManager:
                             "Does this circuit image match the user's request? "
                             "If yes, then just write a 'Y' as your response; "
                             "otherwise, explain clearly and analytically why the circuit doesn't match "
-                            "and what changes should be made."
+                            "and what changes should be made in order to be closer to the user's request"
                         )
                     },
                     {
