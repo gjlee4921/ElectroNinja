@@ -92,29 +92,3 @@
 ]
 
 
-/* the above are examples, make the real ones, figure out the vector db stuff from the documantation and ask chat gpt. make at least 20 examples. keep asking chatgpt everything
-Instructions for Updating the Circuit Examples Database:
-
-This JSON file contains an array of example entries for circuit designs.
-Each entry should include:
-
-1. "asc_path": The relative path to the .asc file (located in data/examples_asc/).
-2. "description": A concise description of the circuit, highlighting key components 
-and the overall functionality. This description is used to generate embeddings for semantic search.
-
-Example entry:
-{
-    "asc_path": "data/examples_asc/2parallel.asc",
-    "description": "Two resistors in parallel, each 2 ohms, with a DC source of 5V."
-}
-
-Guidelines:
-- Ensure that the .asc file is placed inside the 'data/examples_asc/' folder.
-- Write clear, distinctive descriptions for each circuit. Aim to cover a range of circuit types 
-(e.g., filters, amplifiers, oscillators).
-- For a minimal starting set, curate around 20 distinctive examples. Our retrieval system will return the single best match for each query.
-- When adding a new example, check for duplicates and ensure that the new entry provides unique value.
-- After updating the JSON file, run the ingestion script (if applicable) to update the vector database with the new examples.
-
-By following these instructions, we ensure our vector database remains effective for retrieval-augmented generation (RAG) of new circuit designs.
-*/

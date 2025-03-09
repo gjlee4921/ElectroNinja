@@ -11,17 +11,16 @@ from electroninja.gui.top_bar import TopBar
 from electroninja.gui.left_panel import LeftPanel
 from electroninja.gui.middle_panel import MiddlePanel
 from electroninja.gui.right_panel import RightPanel
-from electroninja.llm.chat_manager import ChatManager
+from electroninja.llm.chat_manager import ChatManager, general, asc_generation_prompt, user_prompt, safety_for_agent
+from electroninja.llm.vector_db import VectorDB
 
 # Worker class for asynchronous LLM calls
 class LLMWorker(QThread):
-    resultReady = pyqtSignal(str)  # will emit the result string
-    
+    resultReady = pyqtSignal(str)
     def __init__(self, func, prompt):
         super().__init__()
-        self.func = func  # function to run (e.g., chat_manager.get_chat_response)
+        self.func = func
         self.prompt = prompt
-
     def run(self):
         result = self.func(self.prompt)
         self.resultReady.emit(result)
@@ -43,11 +42,17 @@ class MainWindow(QMainWindow):
         # Initialize simulation process (if needed later)
         self.ltspice_process = None
 
-        # Conversation history: list of messages (each as a dict)
-        self.conversation_history = []  # e.g., {"role": "user"/"assistant", "content": "..."}
+        # Conversation history: only store outputs from o3-mini (ASC code attempts) and vision feedback.
+        # Each entry will be a dict: {"attempt": <number>, "asc_code": "<code>"}.
+        self.conversation_history = []
+        self.attempt_counter = 0
 
-        # Instantiate our ChatManager (LLM integration)
+        # Instantiate our ChatManager and VectorDB.
         self.chat_manager = ChatManager()
+        self.vector_db = VectorDB()  # Ensure your DB is up and running.
+
+        # Test mode: when True, print the constructed prompt instead of sending it.
+        self.test_mode = True
 
         self.initUI()
         self.connectSignals()
@@ -56,7 +61,6 @@ class MainWindow(QMainWindow):
     def initUI(self):
         if 'setup_fonts' in globals():
             setup_fonts(QApplication.instance())
-
         self.setStyleSheet(STYLE_SHEET)
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -64,39 +68,31 @@ class MainWindow(QMainWindow):
         main_vlayout.setContentsMargins(10, 10, 10, 10)
         main_vlayout.setSpacing(10)
 
-        # Top bar
         self.top_bar = TopBar(self)
         main_vlayout.addWidget(self.top_bar)
 
-        # Main horizontal layout for left, middle, right panels
         self.main_layout = QHBoxLayout()
         self.main_layout.setSpacing(10)
         main_vlayout.addLayout(self.main_layout)
 
-        # Create panels
         self.left_panel = LeftPanel(self)
         self.middle_panel = MiddlePanel(self)
         self.right_panel = RightPanel(self)
 
-        # Assign size policies
-        self.left_panel.setSizePolicy(QWidget().sizePolicy())  # For animation
-        self.middle_panel.setSizePolicy(QWidget().sizePolicy())  # Expanding center
-        self.right_panel.setSizePolicy(QWidget().sizePolicy())  # Fixed width
+        self.left_panel.setSizePolicy(QWidget().sizePolicy())
+        self.middle_panel.setSizePolicy(QWidget().sizePolicy())
+        self.right_panel.setSizePolicy(QWidget().sizePolicy())
 
-        # Initially, set the left panel so it starts collapsed
         self.left_panel.setMinimumWidth(self.left_panel_collapsed_width)
-        self.left_panel.setMaximumWidth(300)  # Temporary; recalculated below
+        self.left_panel.setMaximumWidth(300)
 
-        # Add panels in order: left, middle, right
         self.main_layout.addWidget(self.left_panel)
         self.main_layout.addWidget(self.middle_panel)
         self.main_layout.addWidget(self.right_panel)
 
-        # Connect the toggle signal from the left panel
         self.left_panel.toggleRequested.connect(self.on_left_panel_toggle)
 
     def connectSignals(self):
-        # When the user sends a message from the chat, handle it here.
         self.right_panel.messageSent.connect(self.handle_message)
         self.left_panel.compile_button.clicked.connect(self.compile_circuit)
         self.middle_panel.edit_button.clicked.connect(self.edit_with_ltspice)
@@ -104,7 +100,7 @@ class MainWindow(QMainWindow):
     def on_left_panel_toggle(self, is_expanding):
         if is_expanding:
             current_width = self.left_panel.maximumWidth()
-            self.adjustPanelWidths()  # Recalculate expanded width
+            self.adjustPanelWidths()
             self.left_panel.showCodeEditor()
             self.animate_left_panel(current_width, self.left_panel_expanded_width)
         else:
@@ -114,16 +110,16 @@ class MainWindow(QMainWindow):
 
     def animate_left_panel(self, start_width, end_width):
         animation = QPropertyAnimation(self.left_panel, b"maximumWidth")
-        animation.setDuration(600)  # Smooth animation
+        animation.setDuration(600)
         animation.setStartValue(start_width)
         animation.setEndValue(end_width)
         animation.setEasingCurve(QEasingCurve.OutCubic)
         animation.finished.connect(lambda: self.left_panel.setMaximumWidth(end_width))
         animation.start()
-        self.current_animation = animation  # Prevent garbage collection
+        self.current_animation = animation
 
     def adjustPanelWidths(self):
-        total_width = self.width() - 40  # Account for margins/spacings
+        total_width = self.width() - 40
         left_width = int(total_width * 0.22)
         right_width = int(total_width * 0.28)
         self.left_panel_expanded_width = left_width
@@ -137,45 +133,67 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
         self.adjustPanelWidths()
 
+    def build_prompt(self, user_request: str) -> str:
+        """
+        Constructs a prompt for the o3-mini model that includes the 3 most semantically similar
+        circuit examples from the vector DB, then the user's request.
+        """
+        # Retrieve the top-3 examples from the vector database.
+        results = self.vector_db.search(user_request, top_k=3)
+        examples_text = ""
+        for i, res in enumerate(results, start=1):
+            desc = res["metadata"].get("description", "No description")
+            asc_code = res["asc_code"]
+            examples_text += f"Example {i}:\nDescription: {desc}\nASC Code:\n-----------------\n{asc_code}\n-----------------\n\n"
+        
+        prompt = (
+            f"{general}\n\n"
+            "Below are three examples of circuits similar to the user's request:\n\n"
+            f"{examples_text}"
+            f"User's request: {user_request}\n\n"
+            "Now, based on the examples above, generate the complete .asc code for a circuit that meets the user's request.\n"
+            "Your answer must contain only valid .asc code with no additional explanation."
+        )
+        return prompt
+
     @pyqtSlot(str)
     def handle_message(self, message):
         print(f"Received message: {message}")
-        # Immediately store the user's message in the conversation history.
-        self.conversation_history.append({"role": "user", "content": message})
-        
         # The RightPanel already displays the user's message as a bubble.
-        # Now, if the message is circuit-related, proceed with LLM calls.
         if any(kw in message.lower() for kw in ["circuit", "resistor", "capacitor", "oscillator", "filter"]):
             self.circuit_request_prompt = message
             print(f"Stored circuit prompt: {self.circuit_request_prompt}")
+            self.attempt_counter += 1
 
-            # Start worker for chat response first (gpt-4o-mini)
-            self.chatWorker = LLMWorker(self.chat_manager.get_chat_response, self.circuit_request_prompt)
-            self.chatWorker.resultReady.connect(self.on_chat_response_ready)
-            self.chatWorker.start()
-
-            # Then start worker for asc code (o3-mini)
-            self.ascWorker = LLMWorker(self.chat_manager.get_asc_code, self.circuit_request_prompt)
+            # Build the prompt with context from the vector DB.
+            final_prompt = self.build_prompt(self.circuit_request_prompt)
+            # For test mode, print the prompt.
+            if self.test_mode:
+                print("=== Prompt to o3-mini ===")
+                print(final_prompt)
+                # Disable test_mode for subsequent calls
+                self.test_mode = False
+            # Now call the o3-mini model using a worker.
+            self.ascWorker = LLMWorker(self.chat_manager.get_asc_code, final_prompt)
             self.ascWorker.resultReady.connect(self.on_asc_code_ready)
             self.ascWorker.start()
         else:
             response = self.generate_response(message)
             self.right_panel.receive_message(response)
-            self.conversation_history.append({"role": "assistant", "content": response})
-
-    def on_chat_response_ready(self, response):
-        # Called when the friendly chat response is ready.
-        self.right_panel.receive_message(response)
-        self.conversation_history.append({"role": "assistant", "content": response})
 
     def on_asc_code_ready(self, asc_code):
-        # Called when the .asc code is ready.
         if asc_code and asc_code != "N":
             self.left_panel.code_editor.setText(asc_code)
-            self.conversation_history.append({"role": "assistant", "content": f"Generated ASC Code:\n{asc_code}"})
+            self.conversation_history.append({
+                "attempt": self.attempt_counter,
+                "asc_code": asc_code
+            })
         else:
             self.left_panel.code_editor.setText("")
-            self.conversation_history.append({"role": "assistant", "content": "No valid ASC code generated; query deemed irrelevant."})
+            self.conversation_history.append({
+                "attempt": self.attempt_counter,
+                "asc_code": "No valid ASC code generated; query deemed irrelevant."
+            })
 
     def generate_response(self, message):
         text = message.lower()
