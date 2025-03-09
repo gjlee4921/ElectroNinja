@@ -1,10 +1,10 @@
 import os
 from dotenv import load_dotenv
-from openai import OpenAI
+import openai
 
+# Load environment variables and set API key on the module-level client
 load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=OPENAI_API_KEY)
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Prompt fragments
 general = (
@@ -32,11 +32,11 @@ class ChatManager:
     def get_asc_code(self, prompt: str) -> str:
         """
         Generate the .asc code based on the provided prompt.
-        :param prompt: The complete prompt (which includes examples and the user request).
+        :param prompt: The complete prompt (including examples and the user request).
         :return: The .asc code as a string, or "N" if the query is deemed irrelevant.
         """
         try:
-            asc_resp = client.chat.completions.create(
+            asc_resp = openai.ChatCompletion.create(
                 model="o3-mini",
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -58,7 +58,7 @@ class ChatManager:
             "Here generate a brief message to send to your client as they wait for the circuit to be generated."
         )
         try:
-            chat_resp = client.chat.completions.create(
+            chat_resp = openai.ChatCompletion.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": chat_prompt}]
             )

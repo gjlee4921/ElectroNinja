@@ -14,7 +14,6 @@ from electroninja.gui.right_panel import RightPanel
 from electroninja.llm.chat_manager import ChatManager, general, asc_generation_prompt, user_prompt, safety_for_agent
 from electroninja.llm.vector_db import VectorDB
 
-# Worker class for asynchronous LLM calls
 class LLMWorker(QThread):
     resultReady = pyqtSignal(str)
     def __init__(self, func, prompt):
@@ -29,30 +28,23 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("ElectroNinja - Electrical Engineer Agent")
-        self.setGeometry(100, 50, 1400, 800)  # Larger default size
+        self.setGeometry(100, 50, 1400, 800)
 
-        # Collapsed and expanded widths for the left panel
         self.left_panel_collapsed_width = 80
-        self.left_panel_expanded_width = 0  # Calculated at runtime
+        self.left_panel_expanded_width = 0
         
-        # Current circuit file and prompt
         self.current_circuit_file = None
-        self.circuit_request_prompt = None  # Latest circuit request
+        self.circuit_request_prompt = None
         
-        # Simulation process (if needed later)
         self.ltspice_process = None
-
-        # Conversation history: store only outputs from o3-mini (ASC code attempts)
-        # Each entry: {"attempt": <number>, "asc_code": "<code>"}
+        
         self.conversation_history = []
         self.attempt_counter = 0
 
-        # Instantiate ChatManager and VectorDB
         self.chat_manager = ChatManager()
-        self.vector_db = VectorDB()  # Ensure Qdrant is running and collection exists
+        self.vector_db = VectorDB()
 
-        # Test mode: print the constructed prompt instead of sending it on first attempt.
-        self.test_mode = True
+        self.always_print_prompt = True
 
         self.initUI()
         self.connectSignals()
@@ -84,7 +76,7 @@ class MainWindow(QMainWindow):
         self.right_panel.setSizePolicy(QWidget().sizePolicy())
 
         self.left_panel.setMinimumWidth(self.left_panel_collapsed_width)
-        self.left_panel.setMaximumWidth(300)  # Temporary; recalculated below
+        self.left_panel.setMaximumWidth(300)
 
         self.main_layout.addWidget(self.left_panel)
         self.main_layout.addWidget(self.middle_panel)
@@ -134,10 +126,6 @@ class MainWindow(QMainWindow):
         self.adjustPanelWidths()
 
     def build_prompt(self, user_request: str) -> str:
-        """
-        Retrieves the top 3 semantically similar examples from the vector DB,
-        then constructs the prompt that will be sent to the o3-mini model.
-        """
         results = self.vector_db.search(user_request, top_k=3)
         examples_text = ""
         for i, res in enumerate(results, start=1):
@@ -162,20 +150,15 @@ class MainWindow(QMainWindow):
     @pyqtSlot(str)
     def handle_message(self, message):
         print(f"Received message: {message}")
-        # The RightPanel already displays the user's message as a bubble.
         if any(kw in message.lower() for kw in ["circuit", "resistor", "capacitor", "oscillator", "filter"]):
             self.circuit_request_prompt = message
             print(f"Stored circuit prompt: {self.circuit_request_prompt}")
             self.attempt_counter += 1
 
-            # Build the prompt that includes context from the vector DB.
             final_prompt = self.build_prompt(self.circuit_request_prompt)
-            if self.test_mode:
-                print("=== Prompt to o3-mini ===")
-                print(final_prompt)
-                self.test_mode = False  # Disable test mode after printing
+            print("=== Prompt to o3-mini ===")
+            print(final_prompt)
 
-            # Run the o3-mini LLM call with the constructed prompt in a worker.
             self.ascWorker = LLMWorker(self.chat_manager.get_asc_code, final_prompt)
             self.ascWorker.resultReady.connect(self.on_asc_code_ready)
             self.ascWorker.start()
