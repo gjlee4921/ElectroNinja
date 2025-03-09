@@ -48,12 +48,18 @@
   "asc_path": "data/examples_asc/rlc_bandstop.asc",
   "description": "An RLC band-stop (notch) filter using a 100 Ω resistor, a 10 mH inductor, and a 0.1 μF capacitor. The circuit attenuates signals near 5 kHz while allowing frequencies outside this range to pass."
 }
+,
+{
+  "asc_path": "data/examples_asc/capacitive_voltage_divider.asc",
+  "description": "A capacitive AC voltage divider using a 2.2 µF capacitor and a 1 µF capacitor to reduce AC voltage without significant power loss. This circuit is commonly used in high-voltage AC measurement and low-power applications, providing an approximate voltage division ratio of 1:3."
+}
 
 ,
-  {
-      "asc_path": "data/examples_asc/half_wave_rectifier.asc",
-      "description": "A half-wave rectifier circuit that uses a single diode to convert an AC signal into pulsating DC."
-  },
+{
+  "asc_path": "data/examples_asc/half_wave_rectifier.asc",
+  "description": "A half-wave rectifier circuit using a 1N4007 diode and a 470 µF capacitor to convert a 12V RMS AC signal into a pulsating DC output. The capacitor helps to smooth the output by reducing voltage ripple. This version does not include a dedicated load resistor."
+}
+,
   {
       "asc_path": "data/examples_asc/full_wave_rectifier_with_filter.asc",
       "description": "A full-wave rectifier combined with a capacitor filter to smooth the DC output from an AC input."
