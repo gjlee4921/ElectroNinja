@@ -49,7 +49,7 @@ ElectroNinja is an interactive circuit design assistant built with Python and Py
 
 ### LTSpice Installation
 
-Ensure that LTSpice is installed on your system. You can download it from the [Analog Devices LTSpice page](https://www.analog.com/en/design-center/design-tools-and-calculators/ltspice-simulator.html). This tool is required for simulating and previewing circuit designs.
+Ensure that LTSpice is installed on your system. You can download it from the [Analog Devices LTSpice page](https://www.analog.com/en/design-center/design-tools-and-calculators/ltspice-simulator.html). This tool is required for simulating and previewing circuit designs. Change the ltspice_path varible in \circuit\circuit_saver.py and \gui\middle_panel.py to the path of LT SPICE .exe file
 
 ## Installation
 
