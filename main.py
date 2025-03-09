@@ -31,6 +31,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("ElectroNinja - Electrical Engineer Agent")
         self.setGeometry(100, 50, 1400, 800)
 
+        self.left_panel = LeftPanel(self)
+        self.middle_panel = MiddlePanel(self)
+        self.right_panel = RightPanel(self)
+
         self.left_panel_collapsed_width = 80
         self.left_panel_expanded_width = 0
         
@@ -50,6 +54,8 @@ class MainWindow(QMainWindow):
 
         # For debugging: always print the prompt before sending to o3-mini.
         self.always_print_prompt = True
+
+        self.left_panel.imageGenerated.connect(self.middle_panel.set_circuit_image)
 
         self.initUI()
         self.connectSignals()
@@ -91,7 +97,7 @@ class MainWindow(QMainWindow):
 
     def connectSignals(self):
         self.right_panel.messageSent.connect(self.handle_message)
-        self.left_panel.compile_button.clicked.connect(self.compile_circuit)
+        # self.left_panel.compile_button.clicked.connect(self.compile_circuit)
         self.middle_panel.edit_button.clicked.connect(self.edit_with_ltspice)
 
     def on_left_panel_toggle(self, is_expanding):
@@ -203,28 +209,28 @@ class MainWindow(QMainWindow):
         else:
             return "I'll analyze your request and help design the appropriate circuit. Could you provide more specific details about your requirements?"
 
-    def compile_circuit(self):
-        asc_code = self.left_panel.code_editor.toPlainText()
-        if not asc_code.strip():
-            self.right_panel.receive_message("Please enter some circuit code first!")
-            return
-        print("Compiling circuit code...")
-        self.right_panel.receive_message("Circuit compiled successfully! You can see the result in the middle panel.")
-        self.middle_panel.circuit_display.setText("Circuit preview would be displayed here")
-        self.save_circuit()
+    # def compile_circuit(self):
+    #     asc_code = self.left_panel.code_editor.toPlainText()
+    #     if not asc_code.strip():
+    #         self.right_panel.receive_message("Please enter some circuit code first!")
+    #         return
+    #     print("Compiling circuit code...")
+    #     self.right_panel.receive_message("Circuit compiled successfully! You can see the result in the middle panel.")
+    #     self.middle_panel.circuit_display.setText("Circuit preview would be displayed here")
+        # self.save_circuit()
 
-    def save_circuit(self):
-        if self.current_circuit_file is None:
-            import datetime
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            output_dir = f"output_{timestamp}"
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-            self.current_circuit_file = os.path.join(output_dir, "circuit.asc")
-        with open(self.current_circuit_file, 'w') as f:
-            f.write(self.left_panel.code_editor.toPlainText())
-        self.right_panel.receive_message(f"Circuit saved to {self.current_circuit_file}")
-        self.conversation_history.append({"role": "system", "content": f"Circuit saved to {self.current_circuit_file}"})
+    # def save_circuit(self):
+    #     if self.current_circuit_file is None:
+    #         import datetime
+    #         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    #         output_dir = f"output_{timestamp}"
+    #         if not os.path.exists(output_dir):
+    #             os.makedirs(output_dir)
+    #         self.current_circuit_file = os.path.join(output_dir, "circuit.asc")
+    #     with open(self.current_circuit_file, 'w') as f:
+    #         f.write(self.left_panel.code_editor.toPlainText())
+    #     self.right_panel.receive_message(f"Circuit saved to {self.current_circuit_file}")
+    #     self.conversation_history.append({"role": "system", "content": f"Circuit saved to {self.current_circuit_file}"})
 
     def edit_with_ltspice(self):
         if not self.current_circuit_file:

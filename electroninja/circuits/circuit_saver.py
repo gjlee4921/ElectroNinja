@@ -9,7 +9,14 @@ import pygetwindow as gw
 from pywinauto import Application
 
 # Define file paths
-ltspice_path = r"C:\Users\vleou\AppData\Local\Programs\ADI\LTspice\LTspice.exe"
+ltspice_path = r"C:\Users\leegj\AppData\Local\Programs\ADI\LTspice\LTspice.exe"
+def minimize_popups():
+    # Check for any LTspice windows that are not the main window (adjust title filters as needed)
+    for window in gw.getAllWindows():
+        title = window.title.lower()
+        if "ltspice" in title and "main" not in title:  # adjust condition as needed
+            window.minimize()
+            print(f"Minimized popup: {window.title}")
 
 def circuit_saver(original_asc_file, new_window = True):
     base_output_dir = os.path.join(os.getcwd(), "data", "output")
@@ -42,7 +49,6 @@ def circuit_saver(original_asc_file, new_window = True):
         if "ltspice" in window.title.lower():
             ltspice_window = window
             break
-
     if ltspice_window:
         print(f"✅ Found LTSpice window: {ltspice_window.title}")
 
@@ -82,7 +88,7 @@ def circuit_saver(original_asc_file, new_window = True):
 
         # Step 9: Select the correct printer and enter file name
         print_window.type_keys("{TAB 3}")  # Navigate to printer selection
-        print_window.type_keys("{DOWN}")  # Select next available printer
+        print_window.type_keys("{DOWN}")  # Select next available printer 
 
         print_window.type_keys("~")  # Press Enter to confirm print
         time.sleep(1)
@@ -101,6 +107,7 @@ def circuit_saver(original_asc_file, new_window = True):
                 exit()
 
         print(f"✅ PDF exported successfully: {output_pdf}")
+        # minimize_popups()
         time.sleep(2)
 
         # Step 10: Convert PDF to Square PNG

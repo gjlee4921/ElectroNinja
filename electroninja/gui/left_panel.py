@@ -73,7 +73,7 @@ class LeftPanel(QFrame):
         from electroninja.circuits.circuit_saver import circuit_saver
         _, img = circuit_saver(temp_file_path)
 
-        self.imageGenerated.emit(img)
+        self.window().middle_panel.set_circuit_image(img)
 
         # Delete the temporary file after usage
         try:
