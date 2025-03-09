@@ -53,6 +53,8 @@ class MainWindow(QMainWindow):
         self.vision_manager = VisionManager(model="gpt-4o-mini")
         self.always_print_prompt = True
 
+        self.left_panel.imageGenerated.connect(self.middle_panel.set_circuit_image)
+
         self.initUI()
         self.connectSignals()
         self.adjustPanelWidths()

@@ -27,9 +27,6 @@ ElectroNinja is an interactive circuit design assistant built with Python and Py
 - **main.py**  
   The primary application entry point for the full ElectroNinja experience, which integrates the chat manager, vector DB, and GUI components.
 
-- **main_test.py**  
-  A test version of the main application using a `FakeChatManager` to simulate LLM responses.
-
 - **retrieve.py**  
   A command-line tool to perform semantic searches over stored circuit examples.
 
@@ -48,6 +45,12 @@ ElectroNinja is an interactive circuit design assistant built with Python and Py
 - **chat_panel.py**  
   Implements a scrollable chat panel for displaying conversation history with adaptive bubble sizing.
 
+## Prerequisites
+
+### LTSpice Installation
+
+Ensure that LTSpice is installed on your system. You can download it from the [Analog Devices LTSpice page](https://www.analog.com/en/design-center/design-tools-and-calculators/ltspice-simulator.html). This tool is required for simulating and previewing circuit designs. Change the ltspice_path varible in \circuit\circuit_saver.py and \gui\middle_panel.py to the path of LT SPICE .exe file
+
 ## Installation
 
 1. **Clone the repository:**
@@ -55,3 +58,47 @@ ElectroNinja is an interactive circuit design assistant built with Python and Py
    ```bash
    git clone https://github.com/yourusername/electroninja.git
    cd electroninja
+
+2. **Install the dependencies**
+ 
+   ```bash
+   pip install -r requirements.txt
+## ⚠️ Note for macOS Users
+
+Some dependencies in this project require additional installation steps on macOS:
+
+- **`pyautogui`** requires the Quartz framework. Install it using:
+  ```sh
+  pip install pyobjc-framework-Quartz
+`pywinauto` and `pygetwindow` are Windows-only libraries. These should be skipped on macOS as they are not required for macOS users.
+`faiss-cpu` may require installation via Homebrew before using pip.
+
+
+3. **Set Up Environment Variables**
+
+  Create a file named `.env` in the root directory of the project and add your OpenAI API key:
+
+  ```bash
+  OPENAI_API_KEY=your_openai_api_key_here
+  ```
+  
+## Usage
+
+### Running the Application
+
+Launch the full ElectroNinja interface with:
+
+```bash
+python main.py
+```
+Give instructions for designing circuit in the right panel.
+
+Once asc file has been generated in the left panel, click "Compile Circuit" button to visualize ciruit.
+
+The circuit would be displayed in the central panel, click the "Edit with LT SPICE" button to edit circuit in LT SPICE.
+
+
+
+
+
+

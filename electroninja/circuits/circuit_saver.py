@@ -45,7 +45,6 @@ def circuit_saver(original_asc_file, new_window=True):
         if "ltspice" in window.title.lower():
             ltspice_window = window
             break
-
     if ltspice_window:
         print(f"✅ Found LTSpice window: {ltspice_window.title}")
         app = Application().connect(handle=ltspice_window._hWnd)
@@ -77,6 +76,7 @@ def circuit_saver(original_asc_file, new_window=True):
                 print("❌ PDF file was not created within the timeout period.")
                 return False
         print(f"✅ PDF exported successfully: {output_pdf}")
+        # minimize_popups()
         time.sleep(2)
         if os.path.exists(output_pdf):
             doc = fitz.open(output_pdf)

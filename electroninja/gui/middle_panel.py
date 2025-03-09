@@ -106,6 +106,7 @@ class MiddlePanel(QFrame):
     
     def set_circuit_image(self, image_path: str):
         """Update the image display with a new circuit image."""
+        print("Setting middle panel circuit image to the new one...")
         pixmap = QPixmap(image_path)
         if pixmap.isNull():
             self.image_label.setText("Failed to load image")
