@@ -49,16 +49,17 @@ class ChatManager:
 
     def get_chat_response(self, user_input: str) -> str:
         """
-        Generates a friendly and assertive chat response for the client.
+        Generates a friendly and assertive chat response for the client that explicitly avoids including any .asc code.
         
         :param user_input: The client's request.
         :return: The generated chat response as a string.
         """
         chat_prompt = (
             f"{general}\n"
-            "If the client's message is not directly related to circuit design, reply with a concise, confident greeting. "
+            "If the client's message is directly related to circuit design, reply with a concise, confident greeting, "
+            "and inform the client that the circuit is being generated. DO NOT include any .asc code in your response. "
             f"{user_prompt} {user_input}\n"
-            "Provide a brief, assertive message that informs the client that the circuit is being generated without any ambiguity."
+            "Provide a brief, assertive message that assures the client that the circuit is in process."
         )
         try:
             chat_resp = openai.ChatCompletion.create(
