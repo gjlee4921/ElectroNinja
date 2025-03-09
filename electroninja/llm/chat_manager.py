@@ -30,7 +30,6 @@ class ChatManager:
       - refine_asc_code() generates a revised ASC code based on conversation history and vision feedback.
       - get_status_update() produces a brief status update based on conversation history and latest vision feedback.
     """
-
     def get_asc_code(self, prompt: str) -> str:
         try:
             asc_resp = openai.ChatCompletion.create(

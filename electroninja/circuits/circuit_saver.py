@@ -45,6 +45,7 @@ def circuit_saver(original_asc_file, new_window=True):
         if "ltspice" in window.title.lower():
             ltspice_window = window
             break
+
     if ltspice_window:
         print(f"✅ Found LTSpice window: {ltspice_window.title}")
         app = Application().connect(handle=ltspice_window._hWnd)
@@ -52,13 +53,13 @@ def circuit_saver(original_asc_file, new_window=True):
         window.type_keys("^s")
         time.sleep(0.5)
         if os.path.exists(asc_to_use):
-            # Use UTF-8 with error replacement to read the file.
             with open(asc_to_use, "r", encoding="utf-8", errors="replace") as f:
                 new_content = f.read()
             print(new_content)
         window.type_keys("^p")
         print_window = app.window(title_re=".*Print.*")
-        print_window.wait("ready", timeout=5)
+        # Increase timeout to help avoid timing out
+        print_window.wait("ready", timeout=10)
         print("✅ Print window detected. Sending commands...")
         print_window.type_keys("{TAB 3}")
         print_window.type_keys("{DOWN}")
@@ -76,7 +77,6 @@ def circuit_saver(original_asc_file, new_window=True):
                 print("❌ PDF file was not created within the timeout period.")
                 return False
         print(f"✅ PDF exported successfully: {output_pdf}")
-        # minimize_popups()
         time.sleep(2)
         if os.path.exists(output_pdf):
             doc = fitz.open(output_pdf)

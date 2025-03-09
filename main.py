@@ -53,8 +53,6 @@ class MainWindow(QMainWindow):
         self.vision_manager = VisionManager(model="gpt-4o-mini")
         self.always_print_prompt = True
 
-        self.left_panel.imageGenerated.connect(self.middle_panel.set_circuit_image)
-
         self.initUI()
         self.connectSignals()
         self.adjustPanelWidths()
@@ -87,7 +85,7 @@ class MainWindow(QMainWindow):
         self.main_layout.addWidget(self.middle_panel)
         self.main_layout.addWidget(self.right_panel)
 
-        # Connect left panel's signals to update the UI
+        # Connect signals: When the left panel toggles or emits an image, update the UI.
         self.left_panel.toggleRequested.connect(self.on_left_panel_toggle)
         self.left_panel.imageGenerated.connect(self.middle_panel.set_circuit_image)
         print("UI initialized.")
@@ -159,9 +157,6 @@ class MainWindow(QMainWindow):
         return prompt
 
     def build_refinement_prompt(self) -> str:
-        """
-        Builds a prompt for refinement using the conversation history and vision feedback.
-        """
         prompt = "Below are previous attempts and feedback:\n\n"
         for item in self.conversation_history:
             if "asc_code" in item:
@@ -241,10 +236,6 @@ class MainWindow(QMainWindow):
         self.save_circuit()
 
     def save_circuit(self):
-        """
-        Saves the ASC code from the left panel to a fixed directory (data/output),
-        overwriting 'circuit.asc'. Uses UTF-8 encoding.
-        """
         output_dir = os.path.join(os.getcwd(), "data", "output")
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -260,24 +251,23 @@ class MainWindow(QMainWindow):
         })
 
     def run_feedback_loop(self, iteration):
-        """
-        Runs a feedback loop using LTSpice and the vision model to refine the circuit.
-        Maximum iterations defined by self.max_iterations.
-        """
         print(f"Starting feedback loop, iteration {iteration}...")
         from electroninja.circuits.circuit_saver import circuit_saver
         result = circuit_saver(self.current_circuit_file)
         if result:
             asc_path, png_file = result
             print("LTSpice processing finished. Checking updated files...")
+            # Update left panel with the latest ASC code regardless of verification
             if os.path.exists(asc_path):
                 with open(asc_path, "r", encoding='utf-8', errors='replace') as f:
                     updated_circuit_text = f.read()
                 print("Updating left panel with LTSpice-modified ASC code.")
                 self.left_panel.code_editor.setText(updated_circuit_text)
+            # Update middle panel with the latest circuit image
             if os.path.exists(png_file):
                 print("Updating middle panel with new circuit screenshot.")
                 self.middle_panel.set_circuit_image(png_file)
+            # Always get vision feedback and update chat, even if circuit is not verified
             self.right_panel.receive_message("Analyzing circuit image with vision model...")
             vision_feedback = self.vision_manager.analyze_circuit_image(png_file, self.circuit_request_prompt)
             print(f"Vision feedback (Iteration {iteration}): {vision_feedback}")
@@ -288,7 +278,13 @@ class MainWindow(QMainWindow):
             for i, item in enumerate(self.conversation_history, start=1):
                 print(f"Item {i}: {item}")
             print("=================================================")
-            if vision_feedback.strip().upper() == "Y":
+            # Always update the left panel with the new ASC code (even if not verified)
+            if os.path.exists(asc_path):
+                with open(asc_path, "r", encoding='utf-8', errors='replace') as f:
+                    current_code = f.read()
+                self.left_panel.code_editor.setText(current_code)
+            # Check if vision feedback indicates success (accept if it contains "y")
+            if "y" in vision_feedback.strip().lower():
                 self.right_panel.receive_message("Circuit verified successfully!")
                 print("Circuit verified successfully by vision model.")
                 self.print_final_history()
@@ -300,6 +296,7 @@ class MainWindow(QMainWindow):
                 self.print_final_history()
                 return
             else:
+                # Get revised ASC code based on conversation history and vision feedback
                 refinement_prompt = self.chat_manager.refine_asc_code(self.conversation_history, self.circuit_request_prompt)
                 self.right_panel.receive_message(f"Refining circuit (Iteration {iteration}) based on feedback...")
                 print("Refinement prompt to o3-mini:")
@@ -319,14 +316,12 @@ class MainWindow(QMainWindow):
             self.print_final_history()
 
     def print_final_history(self):
-        """Prints the final conversation history at the end of the loop."""
         print("=== FINAL CONVERSATION HISTORY ===")
         for i, item in enumerate(self.conversation_history, start=1):
             print(f"Item {i}: {item}")
         print("==================================")
 
     def edit_with_ltspice(self):
-        """Manual trigger to run the feedback loop."""
         if not self.current_circuit_file:
             self.save_circuit()
         self.right_panel.receive_message("Manual trigger: Running LTSpice processing for circuit refinement...")
