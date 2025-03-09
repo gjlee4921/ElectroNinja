@@ -6,10 +6,11 @@ import psutil
 import fitz  # PyMuPDF
 from PIL import Image #pillow
 import pygetwindow as gw
+import pyautogui
 from pywinauto import Application
 
 # Define file paths
-ltspice_path = r"C:\Users\vleou\AppData\Local\Programs\ADI\LTspice\LTspice.exe"
+ltspice_path = r"C:\Users\leegj\AppData\Local\Programs\ADI\LTspice\LTspice.exe"
 
 def circuit_saver(original_asc_file, new_window = True):
     base_output_dir = os.path.join(os.getcwd(), "data", "output")
@@ -53,19 +54,26 @@ def circuit_saver(original_asc_file, new_window = True):
         # Step 6: Save the schematic using Ctrl + S
         window.type_keys("^s")  # Ctrl + S to save changes
         time.sleep(0.5)
-        if os.path.exists(copied_asc_file):
-            with open(copied_asc_file, "r") as f:
+        if os.path.exists(original_asc_file):
+            with open(copied_asc_file, "r") as f:       
                 new_content = f.read()
         print(new_content)
 
+        # # Read the original content for comparison
+        # with open(original_asc_file, "r") as f:
+        #     original_content = f.read()
+
+        # max_attempts = 20  # Limit attempts to prevent infinite loops
+        # attempt = 0
+
         # while attempt < max_attempts:
-        #     window.type_keys("^s")  # Send Ctrl+S to save changes
-        #     time.sleep(0.5)        # Wait a short moment for LTSpice to process and save
+        #     pyautogui.hotkey('ctrl', 's')
+        #     time.sleep(0.2)        # Wait a short moment for LTSpice to process and save
         #     with open(copied_asc_file, "r") as f:
         #         copied_content = f.read()
         #     if copied_content != original_content:
         #         print("✅ File updated successfully!")
-        #         print(copied_content)
+        #         print(original_content, copied_content)
         #         break
         #     attempt += 1
         # else:
@@ -139,11 +147,11 @@ def circuit_saver(original_asc_file, new_window = True):
         if os.path.exists(output_pdf):
             os.remove(output_pdf)
             print(f"🗑️ Deleted temporary PDF file: {output_pdf}")
-        shutil.copy(copied_asc_file, original_asc_file)
+        shutil.copy(original_asc_file, copied_asc_file)
 
         print(f"🎯 All files saved in {output_directory}")
 
-        return (copied_asc_file, png_file)
+        return (original_asc_file, png_file)
 
     else:
         print("❌ LTSpice window not found. Make sure LTSpice is open.")
