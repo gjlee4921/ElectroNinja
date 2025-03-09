@@ -1,10 +1,9 @@
-import sys
-import os
+import sys, os
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QFileDialog, QMessageBox
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout
 )
-from PyQt5.QtCore import QPropertyAnimation, QEasingCurve, Qt, pyqtSlot, QTimer
-from PyQt5.QtGui import QFont, QPixmap
+from PyQt5.QtCore import QPropertyAnimation, QEasingCurve, Qt, pyqtSlot, QTimer, QThread, pyqtSignal
+from PyQt5.QtGui import QFont
 
 # Import your custom modules
 from electroninja.gui.style import STYLE_SHEET, setup_fonts, COLORS
@@ -12,6 +11,20 @@ from electroninja.gui.top_bar import TopBar
 from electroninja.gui.left_panel import LeftPanel
 from electroninja.gui.middle_panel import MiddlePanel
 from electroninja.gui.right_panel import RightPanel
+from electroninja.llm.chat_manager import ChatManager
+
+# Worker class for asynchronous LLM calls
+class LLMWorker(QThread):
+    resultReady = pyqtSignal(str)  # will emit the result string
+    
+    def __init__(self, func, prompt):
+        super().__init__()
+        self.func = func  # function to run (e.g., chat_manager.get_chat_response)
+        self.prompt = prompt
+
+    def run(self):
+        result = self.func(self.prompt)
+        self.resultReady.emit(result)
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -21,26 +34,27 @@ class MainWindow(QMainWindow):
 
         # Collapsed and expanded widths for the left panel
         self.left_panel_collapsed_width = 80
-        self.left_panel_expanded_width = 0  # calculated at runtime
+        self.left_panel_expanded_width = 0  # Calculated at runtime
         
-        # Current circuit file
+        # Current circuit file and prompt
         self.current_circuit_file = None
+        self.circuit_request_prompt = None  # Stores the latest circuit request
         
-        # Initialize simulation process
+        # Initialize simulation process (if needed later)
         self.ltspice_process = None
+
+        # Instantiate our ChatManager (LLM integration)
+        self.chat_manager = ChatManager()
 
         self.initUI()
         self.connectSignals()
         self.adjustPanelWidths()
 
     def initUI(self):
-        # Optional custom fonts
         if 'setup_fonts' in globals():
             setup_fonts(QApplication.instance())
 
         self.setStyleSheet(STYLE_SHEET)
-
-        # Central widget & main vertical layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_vlayout = QVBoxLayout(central_widget)
@@ -62,30 +76,29 @@ class MainWindow(QMainWindow):
         self.right_panel = RightPanel(self)
 
         # Assign size policies
-        self.left_panel.setSizePolicy(QWidget().sizePolicy())  # We'll animate min/max
+        self.left_panel.setSizePolicy(QWidget().sizePolicy())  # For animation
         self.middle_panel.setSizePolicy(QWidget().sizePolicy())  # Expanding center
-        self.right_panel.setSizePolicy(QWidget().sizePolicy())  # We'll fix its width
+        self.right_panel.setSizePolicy(QWidget().sizePolicy())  # Fixed width
 
-        # Initially, set the left panel min/max so it starts "expanded"
+        # Initially, set the left panel so it starts collapsed
         self.left_panel.setMinimumWidth(self.left_panel_collapsed_width)
-        self.left_panel.setMaximumWidth(300)  # Temporary, replaced in adjustPanelWidths()
+        self.left_panel.setMaximumWidth(300)  # Temporary; recalculated below
 
-        # Add them in left->middle->right order
+        # Add panels in order: left, middle, right
         self.main_layout.addWidget(self.left_panel)
         self.main_layout.addWidget(self.middle_panel)
         self.main_layout.addWidget(self.right_panel)
 
-        # Connect the toggle signal
+        # Connect the toggle signal from the left panel
         self.left_panel.toggleRequested.connect(self.on_left_panel_toggle)
 
     def connectSignals(self):
-        """Connect all signals and slots."""
+        # When the user sends a message from the chat, handle it here.
         self.right_panel.messageSent.connect(self.handle_message)
         self.left_panel.compile_button.clicked.connect(self.compile_circuit)
         self.middle_panel.edit_button.clicked.connect(self.edit_with_ltspice)
 
     def on_left_panel_toggle(self, is_expanding):
-        """Handle the toggle button to expand/collapse the left panel."""
         if is_expanding:
             current_width = self.left_panel.maximumWidth()
             self.adjustPanelWidths()  # Recalculate expanded width
@@ -97,139 +110,102 @@ class MainWindow(QMainWindow):
             self.left_panel.hideCodeEditor()
 
     def animate_left_panel(self, start_width, end_width):
-        """Animate the maximumWidth property of the left panel."""
         animation = QPropertyAnimation(self.left_panel, b"maximumWidth")
-        animation.setDuration(600)  # 600 ms for a smooth animation
+        animation.setDuration(600)  # Smooth animation
         animation.setStartValue(start_width)
         animation.setEndValue(end_width)
         animation.setEasingCurve(QEasingCurve.OutCubic)
-
-        def finalize():
-            self.left_panel.setMaximumWidth(end_width)
-
-        animation.finished.connect(finalize)
+        animation.finished.connect(lambda: self.left_panel.setMaximumWidth(end_width))
         animation.start()
-        self.current_animation = animation  # Prevent GC
+        self.current_animation = animation  # Prevent garbage collection
 
     def adjustPanelWidths(self):
-        """
-        Make the left panel and the right panel the same or custom widths,
-        with the middle panel expanding in between.
-        """
-        total_width = self.width() - 40  # 40 px for margins & spacing
-        
-        # Example: left=22%, middle=50%, right=28%
+        total_width = self.width() - 40  # Account for margins/spacings
         left_width = int(total_width * 0.22)
         right_width = int(total_width * 0.28)
-
         self.left_panel_expanded_width = left_width
-
-        # If left panel is open, set its max to left_width; else collapsed
         if self.left_panel.toggle_button.isChecked():
             self.left_panel.setMaximumWidth(left_width)
         else:
             self.left_panel.setMaximumWidth(self.left_panel_collapsed_width)
-
-        # Right panel is fixed at right_width
         self.right_panel.setFixedWidth(right_width)
 
     def resizeEvent(self, event):
-        """Maintain proportions on window resize."""
         super().resizeEvent(event)
         self.adjustPanelWidths()
 
     @pyqtSlot(str)
     def handle_message(self, message):
-        """Handle messages from the chat panel."""
         print(f"Received message: {message}")
-        # In a real implementation, here we would:
-        # 1. Process the message, possibly with an AI model
-        # 2. Generate a response based on the circuit context
-        
-        # For now, use a simple rule-based response
-        response = self.generate_response(message)
+        # The RightPanel already adds the user's message as a bubble immediately.
+        # Now, if the message is circuit-related, we proceed with LLM calls.
+        if any(kw in message.lower() for kw in ["circuit", "resistor", "capacitor", "oscillator", "filter"]):
+            self.circuit_request_prompt = message
+            print(f"Stored circuit prompt: {self.circuit_request_prompt}")
+
+            # Start worker for chat response first (gpt-4o-mini)
+            self.chatWorker = LLMWorker(self.chat_manager.get_chat_response, self.circuit_request_prompt)
+            self.chatWorker.resultReady.connect(self.on_chat_response_ready)
+            self.chatWorker.start()
+
+            # Then start worker for asc code (o3-mini)
+            self.ascWorker = LLMWorker(self.chat_manager.get_asc_code, self.circuit_request_prompt)
+            self.ascWorker.resultReady.connect(self.on_asc_code_ready)
+            self.ascWorker.start()
+        else:
+            # For non-circuit messages, use a simple rule-based response.
+            response = self.generate_response(message)
+            self.right_panel.receive_message(response)
+
+    def on_chat_response_ready(self, response):
+        # Called when the friendly chat response is ready.
         self.right_panel.receive_message(response)
 
+    def on_asc_code_ready(self, asc_code):
+        # Called when the .asc code is ready.
+        if asc_code and asc_code != "N":
+            self.left_panel.code_editor.setText(asc_code)
+        else:
+            self.left_panel.code_editor.setText("")
+
     def generate_response(self, message):
-        """Generate a response based on the user's message."""
         text = message.lower()
         if "hello" in text or "hi" in text:
             return "Hello! I'm ElectroNinja. How can I help with your circuit design?"
-        elif "circuit" in text:
-            return "I can help you design and analyze circuits. What kind of circuit are you trying to build?"
         elif "ltspice" in text:
             return "LTspice is a powerful circuit simulation tool. You can use the editor button to open your design in LTSpice when you're ready."
-        elif "resistor" in text:
-            return "Resistors are fundamental components that limit current flow. Would you like me to add one to your circuit?"
-        elif "capacitor" in text:
-            return "Capacitors store electrical energy in an electric field. They're useful for filtering, timing circuits, and power supplies. Would you like me to add one to your circuit?"
-        elif "oscillator" in text:
-            return "I can help you design an oscillator circuit. Would you like a simple RC oscillator or something more complex like a crystal oscillator or Wien bridge?"
-        elif "filter" in text:
-            return "Filters are crucial for signal processing. I can help design low-pass, high-pass, band-pass, or notch filters. What frequency range are you targeting?"
         elif "help" in text:
             return "I can help you design circuits, analyze components, or explain electrical concepts. Please describe what you're trying to build!"
         else:
             return "I'll analyze your request and help design the appropriate circuit. Could you provide more specific details about your requirements?"
 
     def compile_circuit(self):
-        """Compile the .asc code and update the circuit display."""
         asc_code = self.left_panel.code_editor.toPlainText()
         if not asc_code.strip():
             self.right_panel.receive_message("Please enter some circuit code first!")
             return
-            
         print("Compiling circuit code...")
-        # Here, you would actually parse the ASC code and generate a preview
-        # For demonstration, we'll just show success and update the display text
-        
-        # In a real implementation, this would:
-        # 1. Save the .asc code to a temporary file
-        # 2. Run LTspice in command line mode to generate an image
-        # 3. Display the resulting image
-        
-        # Mock implementation:
         self.right_panel.receive_message("Circuit compiled successfully! You can see the result in the middle panel.")
         self.middle_panel.circuit_display.setText("Circuit preview would be displayed here")
-        
-        # Save the current circuit to a file
         self.save_circuit()
 
     def save_circuit(self):
-        """Save the current circuit to a file."""
         if self.current_circuit_file is None:
-            # Create a new file with timestamp
             import datetime
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             output_dir = f"output_{timestamp}"
-            
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
-                
             self.current_circuit_file = os.path.join(output_dir, "circuit.asc")
-        
-        # Save the ASC code
         with open(self.current_circuit_file, 'w') as f:
             f.write(self.left_panel.code_editor.toPlainText())
-            
         self.right_panel.receive_message(f"Circuit saved to {self.current_circuit_file}")
 
     def edit_with_ltspice(self):
-        """Open the current circuit in LTSpice."""
-        # In a real implementation, this would:
-        # 1. Save the current circuit to a file if not already saved
-        # 2. Launch LTspice with the file path
-        
         if not self.current_circuit_file:
             self.save_circuit()
-            
-        print(f"Opening circuit in LT Spice: {self.current_circuit_file}")
+        print(f"Opening circuit in LTSpice: {self.current_circuit_file}")
         self.right_panel.receive_message("Opening circuit in LTSpice. This would launch the external application in a real implementation.")
-        
-        # Launch LTspice (this is platform-dependent)
-        # For Windows, you might use:
-        # import subprocess
-        # subprocess.Popen(["C:\\Program Files\\LTC\\LTspiceXVII\\XVIIx64.exe", self.current_circuit_file])
 
 def main():
     app = QApplication(sys.argv)
