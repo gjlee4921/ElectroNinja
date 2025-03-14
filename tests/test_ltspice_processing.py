@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# tests/test_ltspice_processing.py
+# tests/new_test_ltspice_processing.py
 
 import os
 import sys
@@ -17,7 +17,10 @@ sys.path.append(project_root)
 
 # Import from electroninja
 from electroninja.config.settings import Config
-from electroninja.core.ltspice.interface import LTSpiceInterface
+from electroninja.backend.ltspice_manager import LTSpiceManager
+from electroninja.backend.circuit_generator import CircuitGenerator
+from electroninja.llm.providers.openai import OpenAIProvider
+from electroninja.llm.vector_store import VectorStore
 
 # Load environment variables
 load_dotenv()
@@ -39,7 +42,7 @@ def print_separator(title=None):
 
 def test_ltspice_processing(asc_code, prompt_id=1, iteration=0):
     """
-    Test the LTSpice processing workflow:
+    Test the LTSpice processing workflow using the LTSpiceManager:
       - Saves the ASC file to data/output/prompt{prompt_id}/output{iteration}/code.asc.
       - Launches LTSpice GUI, prints to PDF, and converts the PDF to a cropped square PNG.
       - Verifies that the expected files and folder structure are created.
@@ -48,9 +51,14 @@ def test_ltspice_processing(asc_code, prompt_id=1, iteration=0):
         Tuple (asc_path, image_path) on success, or None on failure.
     """
     config = Config()
-    ltspice = LTSpiceInterface(config)
+    ltspice_manager = LTSpiceManager(config)
+    
+    # Also create a circuit generator to validate the ASC code
+    llm_provider = OpenAIProvider(config)
+    vector_store = VectorStore(config)
+    circuit_generator = CircuitGenerator(llm_provider, vector_store)
 
-    print_separator("TEST: LTSPICE PROCESSING")
+    print_separator("TEST: LTSPICE PROCESSING WITH LTSPICE MANAGER")
     print(f"Platform: {platform.system()} {platform.release()}")
     print(f"LTSpice path: {config.LTSPICE_PATH}")
     print(f"Output directory: {config.OUTPUT_DIR}\n")
@@ -65,18 +73,57 @@ def test_ltspice_processing(asc_code, prompt_id=1, iteration=0):
     else:
         print(asc_code[:1000] + "...")
     print("-------------------\n")
+    
+    # Validate the ASC code
+    is_valid = circuit_generator.validate_asc_code(asc_code)
+    print(f"ASC code validation: {'✅ Valid' if is_valid else '❌ Invalid'}")
+    
+    if not is_valid:
+        print("WARNING: The ASC code validation failed, but we'll try to process it anyway.")
 
-    print_separator("PROCESSING WITH LTSPICE")
-    print("Starting LTSpice processing...")
-    print(f"Time: {time.strftime('%H:%M:%S')}")
+    # Get expected output paths
+    expected_asc_path, expected_image_path = ltspice_manager.get_output_paths(prompt_id, iteration)
+    print(f"\nExpected output paths:")
+    print(f"ASC file: {expected_asc_path}")
+    print(f"Image file: {expected_image_path}")
 
-    result = ltspice.process_circuit(asc_code, prompt_id=prompt_id, iteration=iteration)
+    # Show the expected folder structure
+    output_dir = os.path.dirname(expected_asc_path)
+    print(f"\nOutput directory will be: {output_dir}")
+    
+    # Create a detailed log of all the LTSpice processing steps
+    # Note: LTSpice processing doesn't involve API calls, so we don't need to intercept them
+    # Instead, we'll just print detailed information about what's happening
+    
+    print_separator("PROCESSING WITH LTSPICE MANAGER")
+    print(f"Processing circuit with prompt_id={prompt_id}, iteration={iteration}")
+    print(f"Starting time: {time.strftime('%H:%M:%S')}")
+    
+    # Detailed processing steps
+    print("\n=== EXACT LTSPICE PROCESSING STEPS ===")
+    print("1. Creating output directories")
+    print(f"   Creating: {output_dir}")
+    
+    print("2. Writing ASC file")
+    print(f"   Writing to: {expected_asc_path}")
+    
+    print("3. Closing any running LTSpice instances")
+    
+    print("4. Launching LTSpice and automating the print-to-PDF process")
+    print(f"   Command: {config.LTSPICE_PATH} {expected_asc_path}")
+    
+    print("5. Converting the resulting PDF to a PNG image")
+    print(f"   Output image: {expected_image_path}")
+    print("===========================\n")
+
+    # Actually run the LTSpice processing
+    result = ltspice_manager.process_circuit(asc_code, prompt_id=prompt_id, iteration=iteration)
     finish_time = time.strftime('%H:%M:%S')
     print(f"Processing completed at: {finish_time}\n")
 
     if not result:
         print_separator("TEST FAILED")
-        print("LTSpice processing failed: No result returned.")
+        print("LTSpice processing failed: No result returned from LTSpiceManager.")
         return None
 
     asc_path, image_path = result
@@ -142,8 +189,8 @@ SYMATTR InstName R2
 SYMATTR Value 100
 TEXT 136 264 Left 2 !.op
 """
-    prompt_id = "1"
-    iteration = "0"
+    prompt_id = 1
+    iteration = 0
 
     result = test_ltspice_processing(test_asc_code, prompt_id, iteration)
     if result:

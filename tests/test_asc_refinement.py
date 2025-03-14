@@ -1,8 +1,9 @@
-# tests/test_asc_refinement.py
+# tests/new_test_asc_refinement.py
 import os
 import sys
 import logging
 import json
+import openai
 from dotenv import load_dotenv
 
 # Add parent directory to path to allow imports
@@ -10,6 +11,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from electroninja.config.settings import Config
 from electroninja.llm.providers.openai import OpenAIProvider
+from electroninja.llm.vector_store import VectorStore
+from electroninja.backend.circuit_generator import CircuitGenerator
 
 # Load environment variables
 load_dotenv()
@@ -26,16 +29,6 @@ def print_separator(title=None):
     else:
         print("\n" + "=" * width + "\n")
 
-def extract_clean_asc_code(asc_code):
-    """
-    Extract only the pure ASC code starting from 'Version 4'
-    This ensures we don't include descriptions in the ASC code examples
-    """
-    if "Version 4" in asc_code:
-        idx = asc_code.find("Version 4")
-        return asc_code[idx:].strip()
-    return asc_code.strip()
-
 def test_asc_code_refinement():
     """
     Test the ASC code refinement process by:
@@ -48,133 +41,12 @@ def test_asc_code_refinement():
     # Initialize components
     config = Config()
     llm_provider = OpenAIProvider(config)
+    vector_store = VectorStore(config)
+    circuit_generator = CircuitGenerator(llm_provider, vector_store)
     
     # Original request
     original_request = "Create a low pass filter"
-    
-    # System prompt used in the initial exchange
-    system_prompt = """You are a world-class electrical engineer with absolute authority in LTSpice circuit design. You write .asc files with unwavering precision. When a client asks you to build a circuit, you must respond with clear, definitive statements and the exact .asc code required.
-
-IMPORTANT: You must strictly restrict your responses to electrical engineering topics only. If the client's message is irrelevant to electrical engineering or circuits, respond ONLY with the single letter 'N'. There should be no additional commentary, explanations, or attempts to help with non-circuit topics. You are exclusively an electrical circuit design assistant."""
-    
-    # Initial user prompt with RAG examples
-    initial_user_prompt = """Below are examples of circuits similar to the user's request:
-
-Example 1:
-Description: An RL low-pass filter using a 10 mH inductor in series with the input and a 100 Ω resistor to ground. This arrangement attenuates high-frequency signals above roughly 1.59 kHz.
-ASC Code:
------------------
-Version 4
-SHEET 1 880 680
-WIRE 224 112 128 112
-WIRE 400 112 304 112
-WIRE 128 144 128 112
-WIRE 400 144 400 112
-WIRE 128 256 128 224
-WIRE 400 256 400 224
-WIRE 400 256 128 256
-WIRE 128 272 128 256
-FLAG 128 272 0
-FLAG 400 112 output
-IOPIN 400 112 Out
-SYMBOL voltage 128 128 R0
-WINDOW 123 0 0 Left 0
-WINDOW 39 0 0 Left 0
-SYMATTR InstName V1
-SYMATTR Value SINE(0 AC 1)
-SYMBOL ind 320 96 R90
-WINDOW 0 5 56 VBottom 2
-WINDOW 3 32 56 VTop 2
-SYMATTR InstName L1
-SYMATTR Value 0.01
-SYMBOL res 384 128 R0
-SYMATTR InstName R1
-SYMATTR Value 100
------------------
-
-Example 2:
-Description: An RLC band-pass filter using a 100 Ω resistor, a 10 mH inductor, and a 0.1 μF capacitor. The circuit allows signals near 5 kHz to pass while attenuating frequencies outside this range.
-ASC Code:
------------------
-Version 4
-SHEET 1 880 680
-WIRE 192 128 96 128
-WIRE 304 128 272 128
-WIRE 432 128 384 128
-WIRE 528 128 496 128
-WIRE 96 160 96 128
-WIRE 96 256 96 240
-WIRE 496 256 496 128
-WIRE 496 256 96 256
-WIRE 96 288 96 256
-FLAG 96 288 0
-FLAG 528 128 output
-IOPIN 528 128 Out
-SYMBOL voltage 96 144 R0
-WINDOW 123 0 0 Left 0
-WINDOW 39 0 0 Left 0
-SYMATTR InstName V1
-SYMATTR Value SINE(0 AC 1)
-SYMBOL res 288 112 R90
-WINDOW 0 0 56 VBottom 2
-WINDOW 3 32 56 VTop 2
-SYMATTR InstName R1
-SYMATTR Value 100
-SYMBOL cap 496 112 R90
-WINDOW 0 0 32 VBottom 2
-WINDOW 3 32 32 VTop 2
-SYMATTR InstName C1
-SYMATTR Value 0.1e-6
-SYMBOL ind 400 112 R90
-WINDOW 0 5 56 VBottom 2
-WINDOW 3 32 56 VTop 2
-SYMATTR InstName L1
-SYMATTR Value 0.01
------------------
-
-Example 3:
-Description: An RL high-pass filter circuit using a 100 Ω resistor in series with the input and a 10 mH inductor to ground. It passes high-frequency signals while attenuating those below approximately 1.59 kHz (cutoff frequency f_c = R/(2πL)).
-ASC Code:
------------------
-Version 4
-SHEET 1 880 680
-WIRE 176 128 96 128
-WIRE 320 128 256 128
-WIRE 96 160 96 128
-WIRE 320 160 320 128
-WIRE 96 256 96 240
-WIRE 320 256 320 240
-WIRE 320 256 96 256
-WIRE 96 272 96 256
-FLAG 96 272 0
-FLAG 320 128 output
-IOPIN 320 128 Out
-SYMBOL ind 304 144 R0
-SYMATTR InstName L1
-SYMATTR Value 0.01
-SYMBOL res 160 144 R270
-WINDOW 0 32 56 VTop 2
-WINDOW 3 0 56 VBottom 2
-SYMATTR InstName R1
-SYMATTR Value 100
-SYMBOL voltage 96 144 R0
-SYMATTR InstName V1
------------------
-
-User's request: Create a low pass filter
-
-Now, based on the examples above, generate the complete .asc code for a circuit that meets the user's request.
-
-CRITICAL INSTRUCTIONS:
-1. Your output MUST begin with 'Version 4' and contain ONLY valid LTSpice ASC code
-2. Do NOT include ANY descriptions, explanations, or comments before the ASC code
-3. Do NOT include ANY text that is not part of the ASC file format
-4. If the request is not related to circuits, respond only with 'N'
-
-OUTPUT FORMAT (exact):
-Version 4
-SHEET 1 ...
-... [remaining ASC code] ..."""
+    print(f"Original request: {original_request}")
     
     # Initial ASC code (iteration 0) - o3-mini's response
     initial_asc_code = """Version 4
@@ -204,6 +76,12 @@ SYMBOL res 384 128 R0
 SYMATTR InstName R1
 SYMATTR Value 100"""
     
+    # Print initial ASC code
+    print("\nInitial ASC code (iteration 0):")
+    print("-" * 60)
+    print(initial_asc_code)
+    print("-" * 60)
+    
     # Vision feedback for iteration 0
     vision_feedback = """1. **What's wrong with the current implementation:**
 
@@ -230,80 +108,88 @@ SYMATTR Value 100"""
 
    - Adjust the resistor and capacitor values to achieve the desired cutoff frequency."""
     
-    # Create conversation history with complete context
-    history = [
-        {
-            "iteration": 0,
-            "system_prompt": system_prompt,
-            "user_prompt": initial_user_prompt,
-            "asc_code": initial_asc_code,
-            "vision_feedback": vision_feedback
-        }
-    ]
-    
-    print(f"Original request: {original_request}")
-    
-    # Display initial system prompt
-    print("\nInitial system prompt:")
-    print("-" * 60)
-    print(system_prompt)
-    print("-" * 60)
-    
-    # Display initial user prompt with RAG
-    print("\nInitial user prompt with RAG examples:")
-    print("-" * 60)
-    print(initial_user_prompt)
-    print("-" * 60)
-    
-    # Display initial ASC code
-    print("\nInitial ASC code (iteration 0) - o3-mini's response:")
-    print("-" * 60)
-    print(initial_asc_code)
-    print("-" * 60)
-    
-    # Display vision feedback
+    # Print vision feedback
     print("\nVision feedback for iteration 0:")
     print("-" * 60)
     print(vision_feedback)
     print("-" * 60)
     
+    # Create conversation history with complete context
+    history = [
+        {
+            "iteration": 0,
+            "asc_code": initial_asc_code,
+            "vision_feedback": vision_feedback
+        }
+    ]
+    
+    # Get the refinement prompt template
+    from electroninja.llm.prompts.circuit_prompts import GENERAL_INSTRUCTION, REFINEMENT_PROMPT_TEMPLATE
+    
+    # Intercept the OpenAI API call to capture the exact prompt and response
+    original_create = openai.ChatCompletion.create
+    
+    def create_wrapper(**kwargs):
+        # Print the exact prompts going to the model
+        print("\n=== EXACT PROMPTS SENT TO LLM ===")
+        for message in kwargs["messages"]:
+            print(f"Role: {message['role']}")
+            print(f"Content:\n{message['content']}")
+            print("-" * 50)
+        print("===========================\n")
+        
+        # Call the original API
+        response = original_create(**kwargs)
+        
+        # Print the exact raw response from the model
+        print("\n=== EXACT RAW RESPONSE FROM LLM ===")
+        raw_response = response.choices[0].message.content.strip()
+        print(raw_response)
+        print("===========================\n")
+        
+        return response
+    
+    # Replace the API method temporarily
+    openai.ChatCompletion.create = create_wrapper
+    
     # Refine ASC code
     print_separator("REFINING ASC CODE")
     
     try:
-        # Build raw refinement prompt (for debugging)
-        prompt = "Below are previous attempts and feedback:\n\n"
+        # Build the exact refinement prompt that would be used
+        print("\n=== REFINEMENT PROMPT THAT WILL BE USED ===")
+        refinement_prompt_parts = ["Below are previous attempts and feedback:\n\n"]
         
         for item in history:
-            prompt += f"Attempt {item.get('iteration', '?')} ASC code:\n{item['asc_code']}\n\n"
-            prompt += f"Vision feedback (Iteration {item.get('iteration','?')}): {item['vision_feedback']}\n\n"
+            refinement_prompt_parts.append(f"Attempt {item.get('iteration', '?')} ASC code:\n{item['asc_code']}\n\n")
+            refinement_prompt_parts.append(f"Vision feedback (Iteration {item.get('iteration','?')}): {item['vision_feedback']}\n\n")
             
-        prompt += f"Original user's request: {original_request}\n\n"
+        refinement_prompt_parts.append(f"Original user's request: {original_request}\n\n")
+        refinement_prompt_parts.append(REFINEMENT_PROMPT_TEMPLATE)
         
-        from electroninja.llm.prompts.circuit_prompts import REFINEMENT_PROMPT_TEMPLATE
-        prompt += REFINEMENT_PROMPT_TEMPLATE
+        # Join the parts to create the final prompt
+        refinement_prompt = "".join(refinement_prompt_parts)
         
-        print("\nRAW REFINEMENT PROMPT:")
-        print("-" * 60)
-        print(prompt)
-        print("-" * 60)
+        print(refinement_prompt)
+        print("===========================\n")
         
-        # Get refined ASC code
-        refined_asc = llm_provider.refine_asc_code(original_request, history)
+        # Get refined ASC code using the circuit generator
+        refined_asc = circuit_generator.refine_asc_code(original_request, history)
         
-        # Clean the ASC code if needed
-        refined_asc = extract_clean_asc_code(refined_asc)
-        
-        print("\nREFINED ASC CODE:")
+        print("\nFINAL REFINED ASC CODE:")
         print("-" * 60)
         print(refined_asc)
         print("-" * 60)
+        
+        # Validate the refined ASC code
+        is_valid = circuit_generator.validate_asc_code(refined_asc)
+        print(f"\nValidation result: {'✅ Valid' if is_valid else '❌ Invalid'}")
         
         # Add to history for potential further iterations
         history.append({
             "iteration": 1,
             "asc_code": refined_asc,
-            "vision_feedback": "Not analyzed yet" # Would be filled by vision model in real scenario
+            "vision_feedback": "Not analyzed yet"  # Would be filled by vision model in real scenario
         })
         
         # Save history to JSON for reference
@@ -319,6 +205,9 @@ SYMATTR Value 100"""
         import traceback
         traceback.print_exc()
         return False
+    finally:
+        # Restore original method
+        openai.ChatCompletion.create = original_create
 
 if __name__ == "__main__":
     test_asc_code_refinement()

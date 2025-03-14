@@ -1,23 +1,30 @@
-#!/usr/bin/env python3
-"""
-ElectroNinja - AI Electrical Engineer
-
-An AI-powered application that helps design electronic circuits
-using LTSpice and AI models for feedback and refinement.
-"""
+# Update main.py
 
 import sys
+import os
 import logging
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QFont
+import ctypes
+
+# Try to fix COM initialization error
+if sys.platform == 'win32':
+    try:
+        # Set single-threaded apartment mode for COM
+        ctypes.OleDLL('ole32.dll').CoInitialize(None)
+    except:
+        pass
 
 # Initialize configuration and logging
-from electroninja.config import logger
+from electroninja.config.logging_config import setup_logging
+from electroninja.config.settings import Config
 from electroninja.ui.main_window import MainWindow
 
 def main():
     """Main entry point for the application"""
-    # Log application startup
+    # Set up logging
+    setup_logging()
+    logger = logging.getLogger('electroninja')
     logger.info("ElectroNinja starting...")
     
     # Create Qt application
@@ -26,6 +33,10 @@ def main():
     # Set default font
     default_font = QFont("Segoe UI", 10)
     app.setFont(default_font)
+    
+    # Initialize configuration and ensure directories exist
+    config = Config()
+    config.ensure_directories()
     
     # Create and show main window
     window = MainWindow()

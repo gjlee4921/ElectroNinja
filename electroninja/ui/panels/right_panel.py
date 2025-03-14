@@ -57,10 +57,24 @@ class RightPanel(QFrame):
         
         # Emit signal to notify parent
         self.messageSent.emit(text)
-        
+            
+    # Update the receive_message method in electroninja/ui/panels/right_panel.py
+
     def receive_message(self, message):
         """Display a message from the assistant"""
+        # Avoid adding empty messages or extremely similar consecutive messages
+        if not message or not message.strip():
+            return
+        
         logger.info(f"Receiving message in chat panel: {message[:50]}...")
+        
+        # Check if this is a duplicate of the last message
+        if hasattr(self, 'last_message') and self.last_message == message:
+            logger.info("Skipping duplicate message")
+            return
+        
+        # Store this message for duplicate checking
+        self.last_message = message
         
         # Use a small delay to ensure smooth UI updates
         QTimer.singleShot(50, lambda: self.chat_panel.add_message(message, is_user=False))

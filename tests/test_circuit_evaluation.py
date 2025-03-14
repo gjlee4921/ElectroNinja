@@ -1,4 +1,4 @@
-# tests/test_circuit_evaluation.py
+# tests/new_test_circuit_evaluation.py
 import os
 import sys
 import logging
@@ -10,10 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from electroninja.config.settings import Config
 from electroninja.llm.providers.openai import OpenAIProvider
-from electroninja.llm.prompts.circuit_prompts import (
-    GENERAL_INSTRUCTION,
-    CIRCUIT_RELEVANCE_EVALUATION_PROMPT
-)
+from electroninja.backend.request_evaluator import RequestEvaluator
 
 # Load environment variables
 load_dotenv()
@@ -32,9 +29,13 @@ def test_circuit_evaluation(prompt):
     Returns:
         dict: Dictionary with evaluation results
     """
+    print("\n====== TEST: CIRCUIT RELEVANCE EVALUATION ======\n")
+    print(f"Evaluating if request is circuit-related: '{prompt}'")
+    
     # Initialize components
     config = Config()
     llm_provider = OpenAIProvider(config)
+    request_evaluator = RequestEvaluator(llm_provider)
     
     # Initialize result dictionary
     result = {
@@ -43,42 +44,59 @@ def test_circuit_evaluation(prompt):
         "raw_evaluation": ""
     }
     
-    print("\n====== TEST: CIRCUIT RELEVANCE EVALUATION ======\n")
+    # Get the circuit relevance evaluation prompt template
+    from electroninja.llm.prompts.circuit_prompts import GENERAL_INSTRUCTION, CIRCUIT_RELEVANCE_EVALUATION_PROMPT
     
-    # Build evaluation prompt
-    evaluation_prompt = (
-        f"{GENERAL_INSTRUCTION}\n\n"
-        f"{CIRCUIT_RELEVANCE_EVALUATION_PROMPT.format(prompt=prompt)}"
-    )
+    # Intercept the OpenAI API call to capture the exact prompt and response
+    original_create = openai.ChatCompletion.create
     
-    print("=== PROMPT SENT TO EVALUATION MODEL (gpt-4o-mini) ===")
-    print(evaluation_prompt)
-    print("\n===========================\n")
-    
-    # Call the model
-    try:
-        response = openai.ChatCompletion.create(
-            model=llm_provider.evaluation_model,
-            messages=[{"role": "user", "content": evaluation_prompt}]
-        )
+    def create_wrapper(**kwargs):
+        # Print the exact prompt going to the model
+        print("\n=== EXACT PROMPT SENT TO LLM ===")
+        for message in kwargs["messages"]:
+            print(f"Role: {message['role']}")
+            print(f"Content: {message['content']}")
+        print("===========================\n")
         
-        # Extract and process response
-        raw_result = response.choices[0].message.content.strip()
-        is_circuit_related = raw_result.upper().startswith('Y')
+        # Call the original API
+        response = original_create(**kwargs)
+        
+        # Print the exact raw response from the model
+        print("\n=== EXACT RAW RESPONSE FROM LLM ===")
+        raw_response = response.choices[0].message.content.strip()
+        print(raw_response)
+        print("===========================\n")
+        
+        # Store the raw response
+        result["raw_evaluation"] = raw_response
+        
+        return response
+    
+    # Replace the API method temporarily
+    openai.ChatCompletion.create = create_wrapper
+    
+    try:
+        # Show the exact evaluation prompt that will be used
+        exact_prompt = f"{GENERAL_INSTRUCTION}\n\n{CIRCUIT_RELEVANCE_EVALUATION_PROMPT.format(prompt=prompt)}"
+        print("\n=== EVALUATION PROMPT TEMPLATE ===")
+        print(exact_prompt)
+        print("===========================\n")
+        
+        # Evaluate if the request is circuit related
+        is_circuit_related = request_evaluator.is_circuit_related(prompt)
         
         # Store results
-        result["raw_evaluation"] = raw_result
         result["is_circuit_related"] = is_circuit_related
         
-        print("=== RAW RESPONSE FROM EVALUATION MODEL ===")
-        print(raw_result)
-        print("\n===========================\n")
-        
-        print(f"Final evaluation result: {is_circuit_related} (Circuit-related: {'Yes' if is_circuit_related else 'No'})")
+        print(f"\nFinal evaluation result: {is_circuit_related}")
+        print(f"Circuit-related: {'Yes' if is_circuit_related else 'No'}")
         
     except Exception as e:
         print(f"Error during evaluation: {str(e)}")
         result["error"] = str(e)
+    finally:
+        # Restore original method
+        openai.ChatCompletion.create = original_create
     
     return result
 

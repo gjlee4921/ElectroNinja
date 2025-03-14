@@ -38,7 +38,7 @@ class CircuitProcessor:
             # Search for similar examples
             examples = self.vector_store.search(request)
             
-            # Process the request
+            # Process the request using the feedback manager
             result = self.feedback_manager.process_request(
                 request,
                 examples=examples,

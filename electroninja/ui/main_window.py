@@ -1,8 +1,8 @@
-# main_window.py
+# electroninja/ui/main_window.py
 
 import logging
 import os
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QApplication
+from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QApplication, QPushButton
 from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, pyqtSlot
 from electroninja.config.settings import Config
 from electroninja.core.circuit_processor import CircuitProcessor
@@ -38,10 +38,20 @@ class MainWindow(QMainWindow):
         # Current file path
         self.current_circuit_file = None
         
+        # Current prompt tracking
+        self.current_prompt_id = 1
+        
         # Initialize UI
         self.init_ui()
         self.connect_signals()
         self.adjust_panel_widths()
+        
+        # Welcome message
+        self.right_panel.receive_message(
+            "Welcome to ElectroNinja! I'm your AI electrical engineering assistant. "
+            "You can ask me to design circuits like 'Create a low-pass filter' or "
+            "'Design a voltage divider with 5V input and 2.5V output'. How can I help you today?"
+        )
         
     def init_ui(self):
         """Initialize the UI components"""
@@ -81,6 +91,11 @@ class MainWindow(QMainWindow):
         self.panels_layout.addWidget(self.middle_panel)
         self.panels_layout.addWidget(self.right_panel)
         
+        # Debug/Test button (uncomment for testing)
+        # debug_button = QPushButton("Test Integration", self)
+        # debug_button.clicked.connect(self.test_integration)
+        # self.right_panel.layout().addWidget(debug_button)
+        
         logger.info("UI initialized")
         
     def connect_signals(self):
@@ -96,6 +111,20 @@ class MainWindow(QMainWindow):
         self.right_panel.messageSent.connect(self.handle_message)
         
         logger.info("Signals connected")
+    
+    def test_integration(self):
+        """Test integration between components"""
+        logger.info("Testing component connections...")
+        # Test left panel
+        self.left_panel.set_code("Version 4\nSHEET 1 880 680\nWIRE 224 80 80 80")
+        # Test middle panel
+        test_image = os.path.join(self.config.OUTPUT_DIR, "test_image.png")
+        if os.path.exists(test_image):
+            self.middle_panel.set_circuit_image(test_image)
+        else:
+            logger.warning(f"Test image not found: {test_image}")
+        # Test right panel
+        self.right_panel.receive_message("Test message to chat panel")
         
     def on_left_panel_toggle(self, is_expanding):
         """Handle left panel toggle button click"""
@@ -154,6 +183,11 @@ class MainWindow(QMainWindow):
             # Generate simple response
             response = self.generate_chat_response(message)
             self.right_panel.receive_message(response)
+    
+    def generate_chat_response(self, message):
+        """Generate a simple chat response for non-circuit messages"""
+        logger.info("Generating response for non-circuit message")
+        return "I'm trained to help with electronic circuit design. If you'd like me to design a circuit, please ask something like 'Create a voltage divider circuit' or 'Design a low-pass filter'."
             
     def process_circuit_request(self, request):
         """Process a circuit design request"""
@@ -167,28 +201,39 @@ class MainWindow(QMainWindow):
         # Create worker thread for processing
         self.worker = CircuitProcessingWorker(
             self.circuit_processor.feedback_manager,
-            request
+            request,
+            prompt_id=self.current_prompt_id
         )
         
         # Connect signals
         self.worker.statusUpdate.connect(self.right_panel.receive_message)
+        self.worker.ascCodeGenerated.connect(self.left_panel.set_code)
+        self.worker.imageGenerated.connect(self.middle_panel.set_circuit_image)
         self.worker.resultReady.connect(self.handle_circuit_result)
+        
+        # Increment prompt ID for next request
+        self.current_prompt_id += 1
         
         # Start processing
         self.worker.start()
         
+    # Update the handle_circuit_result method in main_window.py
+
     def handle_circuit_result(self, result):
         """Handle circuit processing result"""
         if result.get("success", False):
             # Update UI with successful circuit
-            self.left_panel.set_code(result["asc_code"])
-            self.middle_panel.set_circuit_image(result["image_path"])
-            self.current_circuit_file = result.get("asc_path")
+            if "asc_code" in result:
+                self.left_panel.set_code(result["asc_code"])
+            if "image_path" in result:
+                self.middle_panel.set_circuit_image(result["image_path"])
+            if "asc_path" in result:
+                self.current_circuit_file = result.get("asc_path")
             
-            # Success message
-            self.right_panel.receive_message(
-                f"Circuit successfully verified after {result['iterations']} iterations!"
-            )
+            # Success message - fix grammar for 0 iterations
+            iterations = result.get("iterations", 1)
+            success_message = f"Circuit successfully verified after {iterations} iteration{'s' if iterations != 1 else ''}!"
+            self.right_panel.receive_message(success_message)
         else:
             # Handle failure
             if "error" in result:
@@ -196,8 +241,9 @@ class MainWindow(QMainWindow):
                     f"Error processing circuit: {result['error']}"
                 )
             else:
+                iterations = result.get("iterations", 1)
                 self.right_panel.receive_message(
-                    f"Could not verify circuit after {result['iterations']} iterations. "
+                    f"Could not verify circuit after {iterations} iteration{'s' if iterations != 1 else ''}. "
                     "The best attempt is shown."
                 )
                 
@@ -206,6 +252,8 @@ class MainWindow(QMainWindow):
                     self.left_panel.set_code(result["asc_code"])
                 if "image_path" in result:
                     self.middle_panel.set_circuit_image(result["image_path"])
+                if "asc_path" in result:
+                    self.current_circuit_file = result.get("asc_path")
                     
             logger.error(f"Circuit processing failed: {result.get('error', 'Unknown error')}")
             
@@ -285,4 +333,3 @@ class MainWindow(QMainWindow):
         except Exception as e:
             error_message = handle_error(e, self, "Failed to edit with LTSpice")
             self.right_panel.receive_message(f"Error: {error_message}")
-            
