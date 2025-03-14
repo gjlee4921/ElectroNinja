@@ -54,12 +54,6 @@ ENV/
 logs/
 *.log
 
-# Project specific files/directories
-data/output/
-faiss_index.bin
-metadata_list.pkl
-output-*/
-
 # LTSpice files in output directories
 *.raw
 *.log
