@@ -8,7 +8,6 @@ import json
 import openai
 from typing import List, Dict, Any, Optional
 from electroninja.config.settings import Config
-from electroninja.utils.error_handler import ModelError
 
 logger = logging.getLogger('electroninja')
 
@@ -289,7 +288,6 @@ class VectorStore:
             
         except Exception as e:
             logger.error(f"Embedding error: {str(e)}")
-            raise ModelError(f"Failed to generate embedding: {str(e)}")
             
     def get_document_count(self):
         """Get the number of documents in the index"""

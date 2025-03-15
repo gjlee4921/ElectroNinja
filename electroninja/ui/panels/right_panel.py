@@ -132,35 +132,35 @@ class RightPanel(QFrame):
         QTimer.singleShot(50, lambda: self._add_styled_message(message, message_type))
     
     def _add_styled_message(self, message, message_type="normal"):
-        """
-        Add a message with type-specific styling
-        
-        Args:
-            message (str): The message content
-            message_type (str): Type for styling ('normal', 'initial', 'refining', 'complete')
-        """
-        bubble = self.chat_panel.add_message(message, is_user=False)
-        
-        # Apply styling based on message type
-        if message_type == "initial":
-            # Use default styling
-            pass
-        elif message_type == "refining":
-            # Refinement message - orange hint
-            bubble.setStyleSheet("""
-                background-color: #664B33;  /* Slightly orange tint */
-                border-radius: 6px;
-                color: white;
-                border: none;
-            """)
-        elif message_type == "complete":
-            # Completion message - green hint
-            bubble.setStyleSheet("""
-                background-color: #335940;  /* Slightly green tint */
-                border-radius: 6px;
-                color: white;
-                border: none;
-            """)
+            """
+            Add a message with type-specific styling
+            
+            Args:
+                message (str): The message content
+                message_type (str): Type for styling ('normal', 'initial', 'refining', 'complete')
+            """
+            bubble = self.chat_panel.add_message(message, is_user=False)
+            
+            # Apply styling based on message type
+            if message_type == "initial":
+                # Use default styling
+                pass
+            elif message_type == "refining":
+                # Refinement message - orange hint
+                bubble.setStyleSheet("""
+                    background-color: #664B33;  /* Slightly orange tint */
+                    border-radius: 6px;
+                    color: white;
+                    border: none;
+                """)
+            elif message_type == "complete":
+                # Completion message - green hint
+                bubble.setStyleSheet("""
+                    background-color: #335940;  /* Slightly green tint */
+                    border-radius: 6px;
+                    color: white;
+                    border: none;
+                """)
         
     def clear_chat(self):
         """Clear all chat messages"""

@@ -11,15 +11,11 @@ from electroninja.backend.chat_response_generator import ChatResponseGenerator
 from electroninja.backend.circuit_generator import CircuitGenerator
 from electroninja.backend.ltspice_manager import LTSpiceManager
 from electroninja.backend.vision_processor import VisionProcessor
-from electroninja.backend.iteration_controller import IterationController
-from electroninja.backend.workflow_orchestrator import WorkflowOrchestrator
 
 __all__ = [
     'RequestEvaluator',
     'ChatResponseGenerator',
     'CircuitGenerator',
     'LTSpiceManager',
-    'VisionProcessor',
-    'IterationController',
-    'WorkflowOrchestrator'
+    'VisionProcessor'
 ]
