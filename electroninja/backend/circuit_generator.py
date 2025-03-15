@@ -22,7 +22,9 @@ class CircuitGenerator:
 
     def generate_asc_code(self, prompt: str) -> str:
         self.logger.info(f"Generating ASC code for request: '{prompt}'")
+        # Retrieve similar examples from the vector store.
         examples = self.vector_store.search(prompt)
+        # Use the provided is_circuit_related flag instead of evaluating the prompt here.
         asc_code = self.provider.generate_asc_code(prompt, examples)
         asc_code = self.provider.extract_clean_asc_code(asc_code)
         asc_code = self._ensure_header(asc_code)

@@ -11,8 +11,8 @@ class ChatResponseGenerator:
         self.provider = openai_provider
         self.logger = logger
 
-    def generate_response(self, prompt: str, is_circuit_related: bool) -> str:
-        self.logger.info(f"Generating chat response for prompt: '{prompt}', circuit-related: {is_circuit_related}")
+    def generate_response(self, prompt: str) -> str:
+        self.logger.info(f"Generating chat response for prompt: '{prompt}'")
         # Delegates to the provider's method.
         return self.provider.generate_chat_response(prompt)
 

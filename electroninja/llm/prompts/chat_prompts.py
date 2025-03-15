@@ -3,18 +3,11 @@
 
 # Circuit request for 4o-mini
 CIRCUIT_CHAT_PROMPT = (
+    "User's request: {prompt}\n"
     "If the client's message is directly related to circuit design, reply with a concise, confident greeting, "
     "and inform the client that the circuit is being generated. DO NOT include any .asc code in your response. "
-    "User prompt: {prompt}\n"
-    "Provide a brief, assertive message that assures the client that the circuit is in process."
-)
-
-# Non-circuit request for 4o-mini
-NON_CIRCUIT_CHAT_PROMPT = (
-    "The following request is NOT related to electrical engineering or circuits.\n"
-    "User prompt: {prompt}\n"
-    "Politely inform the user that you are an electrical engineering assistant and can only help with "
-    "circuit design requests. Be courteous but clear about your specific focus area."
+    "If the user's request is not related to circuits, reply with a brief, polite message that the request is not related to circuits."
+    "and say that you are here to do electrical engineering and that you are unable to assist him with his request."
 )
 
 # Vision feedback response prompt for gpt-4o-mini

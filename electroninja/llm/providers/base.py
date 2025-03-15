@@ -2,59 +2,57 @@ from abc import ABC, abstractmethod
 
 class LLMProvider(ABC):
     """Base class for LLM providers"""
-    
+
     @abstractmethod
-    def generate_asc_code(self, prompt, examples=None):
+    def generate_asc_code(self, prompt: str, examples=None) -> str:
         """
-        Generate ASC code based on prompt and examples
-        
+        Generate ASC code based on a prompt and optional examples.
+
         Args:
-            prompt (str): User prompt
-            examples (list): Optional examples for RAG
-            
+            prompt (str): The user's prompt.
+            examples (list, optional): Examples for retrieval-augmented generation (RAG).
+
         Returns:
-            str: ASC code
+            str: The generated ASC code.
         """
         pass
-        
+
     @abstractmethod
-    def generate_chat_response(self, prompt):
+    def generate_chat_response(self, prompt: str) -> str:
         """
-        Generate a chat response
-        
+        Generate a chat response for the given prompt.
+
         Args:
-            prompt (str): User prompt
-            
+            prompt (str): The user's prompt.
+
         Returns:
-            str: Chat response
+            str: The generated chat response.
         """
         pass
-        
+
     @abstractmethod
-    def refine_asc_code(self, request, history):
+    def refine_asc_code(self, request: str, history: list) -> str:
         """
-        Refine ASC code based on request and history
-        
+        Refine ASC code based on the original request and conversation history.
+
         Args:
-            request (str): Original user request
-            history (list): Conversation history
-            
+            request (str): The original user's request.
+            history (list): The conversation history.
+
         Returns:
-            str: Refined ASC code
+            str: The refined ASC code.
         """
         pass
-        
+
     @abstractmethod
-    def analyze_vision_feedback(self, history, feedback, iteration):
+    def generate_vision_feedback_response(self, vision_feedback: str) -> str:
         """
-        Generate a status update based on vision feedback
-        
+        Generate a user-friendly feedback response based on vision feedback.
+
         Args:
-            history (list): Conversation history
-            feedback (str): Vision feedback
-            iteration (int): Current iteration
-            
+            vision_feedback (str): The raw vision feedback.
+
         Returns:
-            str: Status update
+            str: The generated feedback response.
         """
         pass

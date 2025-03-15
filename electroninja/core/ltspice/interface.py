@@ -7,8 +7,6 @@ import subprocess
 import shutil
 import psutil
 from electroninja.config.settings import Config
-from electroninja.utils.error_handler import LTSpiceError
-from electroninja.utils.file_operations import save_file
 import fitz  # PyMuPDF for PDF to image conversion
 from PIL import Image
 from pywinauto import Application, timings
@@ -16,6 +14,18 @@ from pywinauto.keyboard import send_keys  # For global keystroke sending
 
 # Set up logging
 logger = logging.getLogger('electroninja')
+
+def save_file(content, file_path):
+    """
+    Save the provided content to the specified file path.
+    Overwrites the file if it already exists.
+    """
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        logger.info(f"File saved to: {file_path}")
+    except Exception as e:
+        logger.error(f"Failed to save file {file_path}: {e}")
 
 class LTSpiceInterface:
     """
@@ -51,8 +61,6 @@ class LTSpiceInterface:
           
         Returns (asc_path, image_path) on success, or None on failure.
         """
-        if platform.system() != "Windows":
-            raise LTSpiceError("This process only works on Windows.")
         
         output_dir = self._create_output_folders(prompt_id, iteration)
         asc_path = os.path.join(output_dir, "code.asc")

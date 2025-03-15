@@ -13,10 +13,10 @@ from electroninja.backend.chat_response_generator import ChatResponseGenerator
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
-def test_circuit_chat_response(prompt, is_circuit_related):
+def test_circuit_chat_response(prompt):
     """Test generating chat responses and print LLM I/O"""
     print("\n====== TEST: CIRCUIT CHAT RESPONSE ======")
-    print(f"Prompt: '{prompt}', Circuit-related: {'Yes' if is_circuit_related else 'No'}")
+    print(f"Prompt: '{prompt}'")
     
     config = Config()
     llm_provider = OpenAIProvider(config)
@@ -39,7 +39,7 @@ def test_circuit_chat_response(prompt, is_circuit_related):
     openai.ChatCompletion.create = create_wrapper
 
     try:
-        chat_response = chat_generator.generate_response(prompt, is_circuit_related)
+        chat_response = chat_generator.generate_response(prompt)
         print("\n=== FINAL CHAT RESPONSE ===")
         print(chat_response)
     finally:
@@ -49,7 +49,7 @@ def test_circuit_chat_response(prompt, is_circuit_related):
 
 if __name__ == "__main__":
     print("\n=== TESTING CIRCUIT-RELATED PROMPT ===")
-    test_circuit_chat_response("Create a circuit with two resistors in parallel", True)
+    test_circuit_chat_response("Create a circuit with two resistors in parallel")
     
     print("\n=== TESTING NON-CIRCUIT-RELATED PROMPT ===")
-    test_circuit_chat_response("Tell me about World War 2", False)
+    test_circuit_chat_response("Tell me about World War 2")

@@ -13,7 +13,6 @@ from electroninja.llm.prompts.circuit_prompts import (
 
 from electroninja.llm.prompts.chat_prompts import (
     CIRCUIT_CHAT_PROMPT,
-    NON_CIRCUIT_CHAT_PROMPT,
     VISION_FEEDBACK_PROMPT
 )
 
@@ -35,6 +34,5 @@ __all__ = [
     "GENERAL_HELP_RESPONSE",
     "LTSPICE_EXPLANATION",
     "CIRCUIT_CHAT_PROMPT",
-    "NON_CIRCUIT_CHAT_PROMPT",
     "VISION_FEEDBACK_PROMPT"
 ]

@@ -7,13 +7,11 @@ from electroninja.llm.prompts.circuit_prompts import (
     GENERAL_INSTRUCTION,
     SAFETY_FOR_AGENT,
     REFINEMENT_PROMPT_TEMPLATE,
-    VISION_ANALYSIS_PROMPT_TEMPLATE,
     CIRCUIT_RELEVANCE_EVALUATION_PROMPT,
     RAG_ASC_GENERATION_PROMPT
 )
 from electroninja.llm.prompts.chat_prompts import (
     CIRCUIT_CHAT_PROMPT,
-    NON_CIRCUIT_CHAT_PROMPT,
     VISION_FEEDBACK_PROMPT
 )
 
@@ -30,7 +28,7 @@ class OpenAIProvider(LLMProvider):
         self.evaluation_model = self.config.CHAT_MODEL  # Using same model for evaluation
         self.logger = logger        
     
-    def evaluate_circuit_request(self, prompt):
+    def evaluate_circuit_request(self, prompt: str) -> bool:
         try:
             evaluation_prompt = f"{GENERAL_INSTRUCTION}\n\n{CIRCUIT_RELEVANCE_EVALUATION_PROMPT.format(prompt=prompt)}"
             logger.info(f"Evaluating if request is circuit-related: {prompt}")
@@ -46,16 +44,13 @@ class OpenAIProvider(LLMProvider):
             logger.error(f"Error evaluating request: {str(e)}")
             return False
     
-    def extract_clean_asc_code(self, asc_code):
+    def extract_clean_asc_code(self, asc_code: str) -> str:
         if "Version 4" in asc_code:
             idx = asc_code.find("Version 4")
             return asc_code[idx:].strip()
         return asc_code.strip()
     
-    def generate_asc_code(self, prompt, examples=None):
-        if not self.evaluate_circuit_request(prompt):
-            self.logger.info(f"Request not circuit-related (model evaluation): {prompt}")
-            return "N"
+    def generate_asc_code(self, prompt: str, examples=None) -> str:
         self.logger.info(f"Generating ASC code for request: {prompt}")
         system_prompt = f"{GENERAL_INSTRUCTION}\n\n{SAFETY_FOR_AGENT}"
         user_prompt = self._build_prompt(prompt, examples)
@@ -76,7 +71,7 @@ class OpenAIProvider(LLMProvider):
             self.logger.error(f"Error generating ASC code: {str(e)}")
             return "Error: Failed to generate circuit"
     
-    def _build_prompt(self, request, examples=None):
+    def _build_prompt(self, request: str, examples=None) -> str:
         if not examples or len(examples) == 0:
             return f"User's request: {request}\n\n{RAG_ASC_GENERATION_PROMPT}"
         examples_text = ""
@@ -102,13 +97,9 @@ class OpenAIProvider(LLMProvider):
             f"{RAG_ASC_GENERATION_PROMPT}"
         )
     
-    def generate_chat_response(self, prompt):
+    def generate_chat_response(self, prompt: str) -> str:
         try:
-            is_circuit_related = self.evaluate_circuit_request(prompt)
-            if is_circuit_related:
-                chat_prompt = f"{GENERAL_INSTRUCTION}\n{CIRCUIT_CHAT_PROMPT.format(prompt=prompt)}"
-            else:
-                chat_prompt = f"{GENERAL_INSTRUCTION}\n{NON_CIRCUIT_CHAT_PROMPT.format(prompt=prompt)}"
+            chat_prompt = f"{GENERAL_INSTRUCTION}\n{CIRCUIT_CHAT_PROMPT.format(prompt=prompt)}"
             logger.info(f"Generating chat response for prompt: {prompt}")
             response = openai.ChatCompletion.create(
                 model=self.chat_model,
@@ -118,8 +109,9 @@ class OpenAIProvider(LLMProvider):
             return chat_response
         except Exception as e:
             logger.error(f"Error generating chat response: {str(e)}")
+            return "Error generating chat response"
     
-    def generate_vision_feedback_response(self, vision_feedback):
+    def generate_vision_feedback_response(self, vision_feedback: str) -> str:
         try:
             is_success = vision_feedback.strip() == 'Y'
             prompt = VISION_FEEDBACK_PROMPT.format(
@@ -134,12 +126,9 @@ class OpenAIProvider(LLMProvider):
             return feedback_response
         except Exception as e:
             logger.error(f"Error generating vision feedback response: {str(e)}")
-            if vision_feedback.strip() == 'Y':
-                return "Your circuit is complete and meets the requirements. Feel free to ask if you'd like any modifications."
-            else:
-                return "I identified some issues with the circuit and I'm working to fix them. I'll have an improved version shortly."
+            return "Error generating vision feedback response"
     
-    def refine_asc_code(self, request, history):
+    def refine_asc_code(self, request: str, history: list) -> str:
         try:
             prompt = "Below are previous attempts and feedback:\n\n"
             for item in history:
@@ -159,23 +148,5 @@ class OpenAIProvider(LLMProvider):
             return refined_asc
         except Exception as e:
             logger.error(f"Error refining ASC code: {str(e)}")
+            return "Error refining ASC code"
     
-    def analyze_vision_feedback(self, history, feedback, iteration):
-        try:
-            prompt = (
-                VISION_ANALYSIS_PROMPT_TEMPLATE +
-                "\n\nConversation History:\n"
-            )
-            for item in history:
-                prompt += f"{item}\n"
-            prompt += f"\nLatest Vision Feedback (Iteration {iteration}): {feedback}\n"
-            prompt += "Status update:"
-            logger.info(f"Generating status update for iteration {iteration}")
-            response = openai.ChatCompletion.create(
-                model=self.chat_model,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            status_update = response.choices[0].message.content.strip()
-            return status_update
-        except Exception as e:
-            logger.error(f"Error generating status update: {str(e)}")

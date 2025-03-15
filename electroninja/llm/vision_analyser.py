@@ -4,7 +4,6 @@ import logging
 import base64
 import openai
 from electroninja.config.settings import Config
-from electroninja.utils.error_handler import ModelError
 from electroninja.llm.prompts.circuit_prompts import VISION_IMAGE_ANALYSIS_PROMPT
 
 logger = logging.getLogger('electroninja')
@@ -36,7 +35,6 @@ class VisionAnalyzer:
             if not os.path.exists(image_path):
                 error_msg = f"Image file not found: {image_path}"
                 logger.error(error_msg)
-                raise ModelError(error_msg)
             
             # Get file size for logging
             file_size = os.path.getsize(image_path)
@@ -86,4 +84,3 @@ class VisionAnalyzer:
         except Exception as e:
             error_msg = f"Vision analysis error: {str(e)}"
             logger.error(error_msg)
-            raise ModelError(error_msg)
