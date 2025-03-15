@@ -2,13 +2,12 @@
 
 import logging
 import os
-import sys
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QMessageBox, QApplication, QPushButton
-from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, pyqtSlot, QTimer
+import re
+from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QApplication
+from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, pyqtSlot
 from electroninja.config.settings import Config
 from electroninja.utils.async_workers import ElectroNinjaWorker
 from electroninja.utils.error_handler import handle_error
-from electroninja.utils.file_operations import save_file
 from electroninja.ui.panels.left_panel import LeftPanel
 from electroninja.ui.panels.middle_panel import MiddlePanel
 from electroninja.ui.panels.right_panel import RightPanel
@@ -32,11 +31,9 @@ class MainWindow(QMainWindow):
         self.left_panel_collapsed_width = 80
         self.left_panel_expanded_width = 300
         
-        # Current file path
-        self.current_circuit_file = None
-        
-        # Current prompt tracking
+        # Current tracking
         self.current_prompt_id = 1
+        self.current_iteration = 0
         
         # Processing state
         self.is_processing = False
@@ -96,10 +93,6 @@ class MainWindow(QMainWindow):
         """Connect signals between components"""
         # Left panel signals
         self.left_panel.toggleRequested.connect(self.on_left_panel_toggle)
-        self.left_panel.compile_button.clicked.connect(self.compile_circuit)
-        
-        # Middle panel signals
-        self.middle_panel.editRequested.connect(self.edit_with_ltspice)
         
         # Right panel signals
         self.right_panel.messageSent.connect(self.handle_message)
@@ -153,39 +146,43 @@ class MainWindow(QMainWindow):
     @pyqtSlot(str)
     def handle_message(self, message):
         """Handle incoming chat messages"""
-        logger.info(f"Handling message: {message[:50]}...")
+        logger.info(f"Processing user message: {message[:50]}...")
         
         # Ignore if already processing
         if self.is_processing:
-            logger.info("Ignoring message - already processing")
-            self.right_panel.receive_message("I'm still working on your previous request. Please wait...")
             return
             
         # Set processing state
         self.is_processing = True
         self.right_panel.set_processing(True)
         
+        # Add the user message to chat
+        self.right_panel.chat_panel.add_message(message, is_user=True)
+        
         # Ensure left panel is expanded to show the code
         if not self.left_panel.is_expanded:
             self.on_left_panel_toggle(True)
+        
+        # Clear previous content
+        self.left_panel.clear_code()
+        self.middle_panel.clear_image()
+        self.current_iteration = 0
         
         # Process the request
         self.process_request(message)
     
     def process_request(self, request):
         """Process a user request"""
-        logger.info(f"Processing request: {request}")
-        
-        # Clear any existing code and image
-        self.left_panel.clear_code()
+        logger.info(f"Creating worker for request: {request[:50]}...")
         
         # Create worker thread for processing
         self.worker = ElectroNinjaWorker(request, self.current_prompt_id)
         
-        # Connect signals
-        self.worker.chatResponseGenerated.connect(self.right_panel.receive_message)
+        # Connect signals - ensure all needed signals are connected
+        self.worker.chatResponseGenerated.connect(self.on_chat_response)
         self.worker.ascCodeGenerated.connect(self.on_asc_code_generated)
-        self.worker.imageGenerated.connect(self.middle_panel.set_circuit_image)
+        self.worker.imageGenerated.connect(self.on_image_generated)
+        self.worker.visionFeedbackGenerated.connect(self.on_vision_feedback)
         self.worker.resultReady.connect(self.handle_result)
         
         # Increment prompt ID for next request
@@ -194,142 +191,84 @@ class MainWindow(QMainWindow):
         # Start processing
         self.worker.start()
         
-    def on_asc_code_generated(self, asc_code):
-        """
-        Handle ASC code generation with animation
+    def on_chat_response(self, message):
+        """Process chat response, checking for tags"""
+        message_type = "normal"
+        clean_message = message
         
-        Args:
-            asc_code (str): Generated ASC code
-        """
+        # Extract tags if present
+        if "[INITIAL]" in message:
+            message_type = "initial"
+            clean_message = message.replace("[INITIAL]", "").strip()
+        elif "[REFINING]" in message:
+            message_type = "refining"
+            clean_message = message.replace("[REFINING]", "").strip()
+        elif "[COMPLETE]" in message:
+            message_type = "complete"
+            clean_message = message.replace("[COMPLETE]", "").strip()
+        
+        # Send to right panel with type information
+        self.right_panel.receive_message_with_type(clean_message, message_type)
+        
+    def on_asc_code_generated(self, asc_code):
+        """Handle ASC code generation with animation and iteration tracking"""
         # Skip empty or non-circuit responses
         if not asc_code or asc_code == "N":
             return
             
-        # Add version marker if missing
-        if not asc_code.startswith("Version 4"):
-            asc_code = "Version 4\nSHEET 1 880 680\n" + asc_code
-            
-        # Set the code with animation (always show what we have)
-        self.left_panel.set_code(asc_code, animated=True)
+        # Process iteration tags if present
+        iteration_tag = ""
+        clean_asc_code = asc_code
         
-        # We don't save to current.asc anymore - only use output0/code.asc
+        if "[INITIAL]" in asc_code:
+            clean_asc_code = asc_code.replace("[INITIAL]", "").strip()
+            self.current_iteration = 0
+            iteration_tag = "Initial Circuit"
+        elif "[ITERATION" in asc_code:
+            match = re.search(r'\[ITERATION (\d+)\]', asc_code)
+            if match:
+                self.current_iteration = int(match.group(1))
+                iteration_tag = f"Iteration {self.current_iteration}"
+                clean_asc_code = re.sub(r'\[ITERATION \d+\]', '', asc_code).strip()
+        
+        # Add version marker if missing
+        if not clean_asc_code.startswith("Version 4"):
+            clean_asc_code = "Version 4\nSHEET 1 880 680\n" + clean_asc_code
+        
+        # Update iteration display
+        if iteration_tag:
+            self.left_panel.update_iteration_label(iteration_tag)
+            
+        # Set the code with animation
+        self.left_panel.set_code(clean_asc_code, animated=True)
+        
+    def on_image_generated(self, image_path):
+        """Process image generation, extracting iteration info"""
+        # Extract iteration number if present
+        if "output" in image_path:
+            try:
+                match = re.search(r'output(\d+)', image_path)
+                if match:
+                    iteration = int(match.group(1))
+                    self.current_iteration = iteration
+            except:
+                pass
+                
+        # Update middle panel
+        self.middle_panel.set_circuit_image(image_path, self.current_iteration)
+
+    def on_vision_feedback(self, feedback):
+        """Handle vision feedback"""
+        logger.info(f"Received vision feedback: {'Y' if feedback.strip() == 'Y' else 'Needs improvement'}")
+        
+        # The chat response will be handled by the feedback_response_hook
+        # This is just for logging or any additional UI updates
 
     def handle_result(self, result):
         """Handle processing result"""
         try:
-            if result.get("success", False):
-                # Success message
-                if result.get("final_status", ""):
-                    self.right_panel.receive_message(
-                        f"Circuit processing complete: {result['final_status']}"
-                    )
-            else:
-                # Handle failure
-                if "error" in result:
-                    self.right_panel.receive_message(
-                        f"Error processing circuit: {result['error']}"
-                    )
-                elif result.get("final_status", ""):
-                    self.right_panel.receive_message(result["final_status"])
-                else:
-                    self.right_panel.receive_message(
-                        "I was unable to verify the circuit design. The best attempt is shown."
-                    )
-        finally:
-            # Reset processing state
-            self.is_processing = False
-            self.right_panel.set_processing(False)
-            
-    def compile_circuit(self):
-        """Manually compile the current circuit"""
-        logger.info("Manual circuit compilation requested")
-        
-        # Get code from editor
-        asc_code = self.left_panel.get_code()
-        
-        if not asc_code.strip():
-            QMessageBox.warning(self, "Error", "Please enter circuit code first!")
-            return
-            
-        # Process circuit
-        self.right_panel.receive_message("Processing circuit...")
-        
-        # Create a worker to compile the circuit
-        compile_worker = ElectroNinjaWorker(
-            "COMPILE:" + asc_code, 
-            self.current_prompt_id,
-            compile_only=True
-        )
-        
-        # Connect signals
-        compile_worker.imageGenerated.connect(self.middle_panel.set_circuit_image)
-        compile_worker.resultReady.connect(self.handle_compile_result)
-        
-        # Increment prompt ID
-        self.current_prompt_id += 1
-        
-        # Start processing
-        compile_worker.start()
-            
-    def handle_compile_result(self, result):
-        """Handle compilation result"""
-        if result.get("success", False):
-            self.right_panel.receive_message("Circuit compiled successfully!")
-        else:
-            self.right_panel.receive_message(f"Error: {result.get('error', 'Failed to compile circuit')}")
-            
-    def edit_with_ltspice(self):
-        """Edit circuit in LTSpice"""
-        logger.info("Edit with LTSpice requested")
-        
-        # Get code from editor
-        asc_code = self.left_panel.get_code()
-        
-        if not asc_code.strip():
-            QMessageBox.warning(self, "Error", "Please enter circuit code first!")
-            return
-            
-        try:
-            # Set processing state
-            self.is_processing = True
-            self.right_panel.set_processing(True)
-            
-            # Process circuit with LTSpice
-            self.right_panel.receive_message("Opening circuit in LTSpice. Make your changes and save...")
-            
-            # Create a worker to edit the circuit
-            edit_worker = ElectroNinjaWorker(
-                "EDIT:" + asc_code, 
-                self.current_prompt_id,
-                edit_with_ltspice=True
-            )
-            
-            # Connect signals
-            edit_worker.ascCodeGenerated.connect(self.on_asc_code_generated)
-            edit_worker.imageGenerated.connect(self.middle_panel.set_circuit_image)
-            edit_worker.resultReady.connect(self.handle_edit_result)
-            
-            # Increment prompt ID
-            self.current_prompt_id += 1
-            
-            # Start processing
-            edit_worker.start()
-                
-        except Exception as e:
-            error_message = handle_error(e, self, "Failed to edit with LTSpice")
-            self.right_panel.receive_message(f"Error: {error_message}")
-            
-            # Reset processing state
-            self.is_processing = False
-            self.right_panel.set_processing(False)
-            
-    def handle_edit_result(self, result):
-        """Handle edit result"""
-        try:
-            if result.get("success", False):
-                self.right_panel.receive_message("Circuit updated from LTSpice!")
-            else:
-                self.right_panel.receive_message(f"Error: {result.get('error', 'Failed to edit with LTSpice')}")
+            # Just reset processing state, let LLM handle any messages
+            pass
         finally:
             # Reset processing state
             self.is_processing = False

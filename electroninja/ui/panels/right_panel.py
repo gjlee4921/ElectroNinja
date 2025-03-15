@@ -19,9 +19,11 @@ class RightPanel(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.is_processing = False  # Track if we're processing a request
+        self.last_message = ""
         self.initUI()
         
     def initUI(self):
+        """Initialize the UI components"""
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(10)
@@ -34,7 +36,7 @@ class RightPanel(QFrame):
         self.chat_title.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self.chat_title)
         
-        # Chat messages area (scrollable)
+        # Chat messages area
         self.chat_panel = ChatPanel(self)
         self.chat_panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         main_layout.addWidget(self.chat_panel, stretch=1)
@@ -60,8 +62,7 @@ class RightPanel(QFrame):
         
     def set_processing(self, is_processing):
         """
-        Set whether circuit processing is in progress.
-        This disables the send button during processing.
+        Set whether circuit processing is in progress
         
         Args:
             is_processing (bool): True if processing is active, False otherwise
@@ -88,27 +89,80 @@ class RightPanel(QFrame):
         Args:
             message (str): Message to display
         """
-        # Avoid adding empty messages or extremely similar consecutive messages
+        # Skip empty messages
         if not message or not message.strip():
             return
         
         logger.info(f"Receiving message in chat panel: {message[:50]}...")
         
-        # Check if this is a duplicate of the last message
-        if hasattr(self, 'last_message') and self.last_message == message:
+        # Check for duplicate message
+        if self.last_message == message:
             logger.info("Skipping duplicate message")
             return
         
-        # Store this message for duplicate checking
+        # Store for duplicate checking
         self.last_message = message
         
-        # Use a small delay to ensure smooth UI updates
+        # Add to chat with small delay for smooth UI
         QTimer.singleShot(50, lambda: self.chat_panel.add_message(message, is_user=False))
+    
+    def receive_message_with_type(self, message, message_type="normal"):
+        """
+        Display a message with type-specific styling
+        
+        Args:
+            message (str): Message to display
+            message_type (str): Message type ('normal', 'initial', 'refining', 'complete')
+        """
+        # Skip empty messages
+        if not message or not message.strip():
+            return
+        
+        logger.info(f"Receiving {message_type} message: {message[:50]}...")
+        
+        # Check for duplicate message
+        if self.last_message == message:
+            logger.info("Skipping duplicate message")
+            return
+        
+        # Store for duplicate checking
+        self.last_message = message
+        
+        # Add to chat with small delay for smooth UI
+        QTimer.singleShot(50, lambda: self._add_styled_message(message, message_type))
+    
+    def _add_styled_message(self, message, message_type="normal"):
+        """
+        Add a message with type-specific styling
+        
+        Args:
+            message (str): The message content
+            message_type (str): Type for styling ('normal', 'initial', 'refining', 'complete')
+        """
+        bubble = self.chat_panel.add_message(message, is_user=False)
+        
+        # Apply styling based on message type
+        if message_type == "initial":
+            # Use default styling
+            pass
+        elif message_type == "refining":
+            # Refinement message - orange hint
+            bubble.setStyleSheet("""
+                background-color: #664B33;  /* Slightly orange tint */
+                border-radius: 6px;
+                color: white;
+                border: none;
+            """)
+        elif message_type == "complete":
+            # Completion message - green hint
+            bubble.setStyleSheet("""
+                background-color: #335940;  /* Slightly green tint */
+                border-radius: 6px;
+                color: white;
+                border: none;
+            """)
         
     def clear_chat(self):
         """Clear all chat messages"""
         self.chat_panel.clear_chat()
-        
-    def is_input_enabled(self):
-        """Check if the input is enabled"""
-        return not self.is_processing
+        self.last_message = ""
