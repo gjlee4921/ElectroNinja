@@ -3,7 +3,6 @@ import os
 from typing import Tuple, Optional
 from electroninja.config.settings import Config
 from electroninja.core.ltspice.interface import LTSpiceInterface
-from electroninja.utils.error_handler import LTSpiceError
 
 logger = logging.getLogger('electroninja')
 
@@ -41,9 +40,27 @@ class LTSpiceManager:
             Optional[Tuple[str, str]]: (asc_path, image_path) or None if processing failed
         """
         try:
-            self.logger.info(f"Processing circuit with LTSpice (Prompt {prompt_id}, Iteration {iteration})")
+            # Get output paths
+            asc_path, image_path = self.get_output_paths(prompt_id, iteration)
+            
+            # Check if image already exists (to avoid duplication)
+            if os.path.exists(image_path):
+                self.logger.info(f"Image already exists, skipping processing: {image_path}")
+                return asc_path, image_path
+
+            # Create output directory
+            output_dir = os.path.dirname(asc_path)
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir, exist_ok=True)
+                self.logger.info(f"Created output structure: {output_dir}")
+            
+            # Write ASC file
+            with open(asc_path, 'w') as f:
+                f.write(asc_code)
+            self.logger.info(f"Wrote ASC file: {asc_path}")
             
             # Process the circuit using the LTSpice interface
+            self.logger.info(f"Processing circuit with LTSpice (Prompt {prompt_id}, Iteration {iteration})")
             result = self.ltspice_interface.process_circuit(asc_code, prompt_id=prompt_id, iteration=iteration)
             
             if not result:
@@ -52,17 +69,14 @@ class LTSpiceManager:
                 
             asc_path, image_path = result
             
-            # Verify that the files exist
-            if not os.path.exists(asc_path) or not os.path.exists(image_path):
-                self.logger.error(f"Expected output files not found: ASC={os.path.exists(asc_path)}, Image={os.path.exists(image_path)}")
+            # Just check if the image exists
+            if not os.path.exists(image_path):
+                self.logger.error(f"Expected image file not found: Image={image_path}")
                 return None
                 
             self.logger.info(f"LTSpice processing successful. ASC: {asc_path}, Image: {image_path}")
             return asc_path, image_path
             
-        except LTSpiceError as e:
-            self.logger.error(f"LTSpice error: {str(e)}")
-            return None
         except Exception as e:
             self.logger.error(f"Unexpected error in LTSpice processing: {str(e)}")
             return None

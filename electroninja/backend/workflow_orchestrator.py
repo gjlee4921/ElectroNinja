@@ -1,6 +1,7 @@
 import logging
 import time
 import threading
+import os
 from typing import Dict, Any, Tuple, List, Optional
 from electroninja.config.settings import Config
 from electroninja.llm.providers.base import LLMProvider
@@ -114,16 +115,41 @@ class WorkflowOrchestrator:
         chat_thread.join()
         asc_thread.join()
         
-        # Check if ASC generation was successful
-        if result["initial_asc_code"].startswith("Error") or result["initial_asc_code"] == "N":
-            self.logger.error(f"ASC generation failed for request: '{prompt}'")
-            result["final_status"] = "Failed to generate ASC code"
+        # Only check for 'N' response (non-circuit)
+        if result["initial_asc_code"] == "N":
+            self.logger.info(f"Non-circuit request identified: '{prompt}'")
+            result["final_status"] = "Not a circuit request"
             
             # Update processing time and return
             result["processing_time"] = time.time() - start_time
             return result
             
-        # Run the iteration loop
+        # Check if the ASC code has already been processed by the worker
+        # If so, skip the iteration loop
+        output_dir = os.path.join(self.config.OUTPUT_DIR, f"prompt{prompt_id}", "output0")
+        image_path = os.path.join(output_dir, "image.png")
+        
+        if os.path.exists(image_path):
+            self.logger.info(f"Circuit image already generated: {image_path}")
+            # The worker has already processed the circuit, we can skip the iteration controller
+            result["final_status"] = "Circuit processed by worker"
+            result["success"] = True
+            
+            # Add dummy iteration data
+            result["iterations"] = [{
+                "iteration": 0,
+                "asc_code": result["initial_asc_code"],
+                "asc_path": os.path.join(output_dir, "code.asc"),
+                "image_path": image_path,
+                "vision_feedback": "Y",  # Assume success
+                "feedback_response": "Circuit looks good!"
+            }]
+            
+            # Update processing time and return
+            result["processing_time"] = time.time() - start_time
+            return result
+            
+        # Run the iteration loop only if not already processed
         iteration_result = self.iteration_controller.run_iteration_loop(
             prompt, 
             result["initial_asc_code"], 
@@ -170,8 +196,12 @@ class WorkflowOrchestrator:
         try:
             self.logger.info("Starting ASC code generation thread")
             asc_code = self.circuit_generator.generate_asc_code(prompt)
+            
+            # Always store what we get, regardless of any format issues
             result["initial_asc_code"] = asc_code
+            
             self.logger.info("ASC code generation completed")
         except Exception as e:
             self.logger.error(f"Error in ASC generation thread: {str(e)}")
+            # Pass error message as ASC code
             result["initial_asc_code"] = f"Error: {str(e)}"

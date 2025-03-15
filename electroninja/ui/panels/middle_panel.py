@@ -1,13 +1,12 @@
-#middle_panel.py
-
+# middle_panel.py
 
 import os
 import logging
 from PyQt5.QtWidgets import (
     QFrame, QVBoxLayout, QLabel, QPushButton, QSizePolicy,
-    QHBoxLayout, QWidget, QMessageBox
+    QHBoxLayout, QWidget, QMessageBox, QGraphicsOpacityEffect
 )
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QPropertyAnimation, QEasingCurve, QTimer
 from PyQt5.QtGui import QFont, QPixmap
 from electroninja.config.settings import Config
 
@@ -22,6 +21,7 @@ class MiddlePanel(QFrame):
         super().__init__(parent)
         self.config = Config()
         self.current_image_path = None
+        self.transition_duration = 500  # Animation duration in ms
         self.initUI()
         
     def initUI(self):
@@ -74,6 +74,16 @@ class MiddlePanel(QFrame):
         self.image_label.setAlignment(Qt.AlignCenter)
         self.image_label.setStyleSheet("border: none; color: #AAAAAA;")
         
+        # Add opacity effect for fade transitions
+        self.opacity_effect = QGraphicsOpacityEffect(self.image_label)
+        self.opacity_effect.setOpacity(1.0)
+        self.image_label.setGraphicsEffect(self.opacity_effect)
+        
+        # Create opacity animation
+        self.fade_animation = QPropertyAnimation(self.opacity_effect, b"opacity")
+        self.fade_animation.setDuration(self.transition_duration)
+        self.fade_animation.setEasingCurve(QEasingCurve.InOutCubic)
+        
         frame_layout.addWidget(self.image_label)
         frame_layout.addWidget(self.circuit_display)
         h_layout.addWidget(self.display_frame)
@@ -98,8 +108,73 @@ class MiddlePanel(QFrame):
         self.main_layout.addStretch()
         
     def set_circuit_image(self, image_path):
-        """Update the image display with a new circuit image"""
+        """
+        Update the image display with a new circuit image using fade transition
+        
+        Args:
+            image_path (str): Path to the image file
+        """
         logger.info(f"Setting circuit image: {image_path}")
+        
+        # Validate the image path
+        if not os.path.exists(image_path):
+            logger.error(f"Image file does not exist: {image_path}")
+            return
+            
+        # Keep track of the new image path
+        new_image_path = image_path
+        
+        # Skip if this is the same image we're already displaying
+        if self.current_image_path and os.path.normpath(self.current_image_path) == os.path.normpath(new_image_path):
+            logger.info(f"Image is already displayed, skipping transition: {new_image_path}")
+            return
+        
+        # If there's no current image, just set it directly
+        if not self.current_image_path:
+            self._set_image_direct(new_image_path)
+            return
+            
+        # Fade out the current image
+        self.fade_animation.setStartValue(1.0)
+        self.fade_animation.setEndValue(0.0)
+        
+        # Disconnect any previous connections to avoid multiple callbacks
+        try:
+            self.fade_animation.finished.disconnect()
+        except TypeError:
+            # No connections exist
+            pass
+        
+        # Set up the callback to change the image when fade out is complete
+        def fade_out_complete():
+            # Set the new image
+            self._set_image_direct(new_image_path)
+            
+            # Fade in the new image
+            fade_in = QPropertyAnimation(self.opacity_effect, b"opacity")
+            fade_in.setDuration(self.transition_duration)
+            fade_in.setStartValue(0.0)
+            fade_in.setEndValue(1.0)
+            fade_in.setEasingCurve(QEasingCurve.InOutCubic)
+            fade_in.start()
+            
+        # Connect the finished signal to our callback
+        self.fade_animation.finished.connect(fade_out_complete)
+        
+        # Start the fade out animation
+        self.fade_animation.start()
+        
+    def _set_image_direct(self, image_path):
+        """
+        Set the image directly without animation
+        
+        Args:
+            image_path (str): Path to the image file
+        """
+        if not os.path.exists(image_path):
+            logger.error(f"Image file does not exist for direct setting: {image_path}")
+            return
+            
         self.current_image_path = image_path
         
         pixmap = QPixmap(image_path)
@@ -110,8 +185,14 @@ class MiddlePanel(QFrame):
         else:
             # Hide placeholder text, show the image
             self.circuit_display.setText("")
+            
+            # Determine appropriate size for the image
+            available_width = self.display_frame.width()
+            available_height = self.display_frame.height()
+            
             self.image_label.setPixmap(pixmap.scaled(
-                400, 400, 
+                available_width, 
+                available_height, 
                 Qt.KeepAspectRatio, 
                 Qt.SmoothTransformation
             ))

@@ -1,6 +1,5 @@
 import logging
 from electroninja.llm.providers.base import LLMProvider
-from electroninja.utils.error_handler import ModelError
 
 logger = logging.getLogger('electroninja')
 

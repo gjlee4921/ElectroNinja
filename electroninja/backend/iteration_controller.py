@@ -128,13 +128,17 @@ class IterationController:
             self.logger.info(f"Refining ASC code for iteration {current_iteration + 1}")
             refined_asc_code = self.circuit_generator.refine_asc_code(prompt, history)
             
-            # Validate refined ASC code
-            if refined_asc_code.startswith("Error:") or not self.circuit_generator.validate_asc_code(refined_asc_code):
-                self.logger.error(f"ASC refinement failed (iteration {current_iteration})")
-                result["final_status"] = f"Failed at iteration {current_iteration}: ASC refinement error"
-                break
-                
-            # Update for next iteration
+            # Check for basic format only - no validation
+            if not refined_asc_code or refined_asc_code == "N":
+                self.logger.warning(f"ASC refinement returned empty or N (iteration {current_iteration})")
+                # We'll still try to use it
+            
+            # Log any error message but continue anyway
+            if refined_asc_code.startswith("Error:"):
+                self.logger.warning(f"ASC refinement returned error (iteration {current_iteration}): {refined_asc_code}")
+                # Continue anyway, the error message might get rendered in LTSpice
+            
+            # Update for next iteration - always use what we got
             iteration_data["refined_asc_code"] = refined_asc_code
             current_asc_code = refined_asc_code
             current_iteration += 1

@@ -1,1 +1,2 @@
-# This file intentionally left empty
+# electroninja/utils/__init__.py
+# Package initialization

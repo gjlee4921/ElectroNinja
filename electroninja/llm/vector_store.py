@@ -8,7 +8,7 @@ import json
 import openai
 from typing import List, Dict, Any, Optional
 from electroninja.config.settings import Config
-from electroninja.utils.error_handler import ModelError, FileError
+from electroninja.utils.error_handler import ModelError
 
 logger = logging.getLogger('electroninja')
 

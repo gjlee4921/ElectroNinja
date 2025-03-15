@@ -1,4 +1,4 @@
-# Update main.py
+# main.py
 
 import sys
 import os

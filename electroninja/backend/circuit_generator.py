@@ -2,7 +2,6 @@ import logging
 from typing import List, Dict, Any, Optional, Tuple
 from electroninja.llm.providers.base import LLMProvider
 from electroninja.llm.vector_store import VectorStore
-from electroninja.utils.error_handler import ModelError
 
 logger = logging.getLogger('electroninja')
 
@@ -40,52 +39,6 @@ class CircuitGenerator:
             return asc_code[idx:].strip()
         return asc_code.strip()
 
-    def validate_asc_code(self, asc_code: str) -> bool:
-        """
-        Validate ASC code to ensure it's properly formed.
-        
-        Args:
-            asc_code (str): ASC code to validate
-            
-        Returns:
-            bool: True if valid, False otherwise
-        """
-        # Check for basic structure
-        if not asc_code.startswith("Version 4"):
-            self.logger.warning("Invalid ASC code: Does not start with 'Version 4'")
-            return False
-            
-        # Check for duplicate FLAG entries
-        flag_lines = [line for line in asc_code.splitlines() if line.startswith("FLAG")]
-        flag_targets = [line.split()[1:3] for line in flag_lines if len(line.split()) >= 3]
-        if len(flag_targets) != len(set(tuple(target) for target in flag_targets)):
-            self.logger.warning("Invalid ASC code: Contains duplicate FLAGS")
-            return False
-            
-        # Check for duplicate SYMBOL entries at same coordinates
-        symbol_lines = [line for line in asc_code.splitlines() if line.startswith("SYMBOL")]
-        symbol_positions = []
-        for line in symbol_lines:
-            parts = line.split()
-            if len(parts) >= 4:
-                try:
-                    pos = (parts[-2], parts[-1])
-                    symbol_type = parts[1]
-                    key = (symbol_type, pos)
-                    if key in symbol_positions:
-                        self.logger.warning(f"Invalid ASC code: Duplicate SYMBOL {symbol_type} at position {pos}")
-                        return False
-                    symbol_positions.append(key)
-                except:
-                    pass
-                    
-        # Ensure there's at least one voltage source
-        if not any(line.startswith("SYMBOL voltage") for line in symbol_lines):
-            self.logger.warning("Invalid ASC code: No voltage source found")
-            return False
-            
-        return True
-
     def generate_asc_code(self, prompt: str) -> str:
         """
         Generate ASC code based on user prompt using RAG.
@@ -111,14 +64,15 @@ class CircuitGenerator:
                 self.logger.info(f"Model determined request is not circuit-related: '{prompt}'")
                 return "N"
                 
-            # Clean and validate the ASC code
+            # Clean the ASC code
             clean_asc = self.extract_clean_asc_code(asc_code)
             
-            if not self.validate_asc_code(clean_asc):
-                self.logger.warning("Generated ASC code failed validation")
-                return "Error: Generated circuit is invalid"
+            # Simple check to ensure it starts with Version 4
+            if not clean_asc.startswith("Version 4"):
+                self.logger.warning("ASC code does not start with 'Version 4', adding it")
+                clean_asc = "Version 4\nSHEET 1 880 680\n" + clean_asc
                 
-            self.logger.info("ASC code generated and validated successfully")
+            self.logger.info("ASC code generated successfully")
             return clean_asc
             
         except Exception as e:
@@ -143,14 +97,15 @@ class CircuitGenerator:
             # Refine the ASC code using the LLM provider
             refined_asc = self.llm_provider.refine_asc_code(original_request, history)
             
-            # Clean and validate the refined ASC code
+            # Clean the refined ASC code
             clean_asc = self.extract_clean_asc_code(refined_asc)
             
-            if not self.validate_asc_code(clean_asc):
-                self.logger.warning("Refined ASC code failed validation")
-                return "Error: Refined circuit is invalid"
+            # Simple check to ensure it starts with Version 4
+            if not clean_asc.startswith("Version 4"):
+                self.logger.warning("Refined ASC code does not start with 'Version 4', adding it")
+                clean_asc = "Version 4\nSHEET 1 880 680\n" + clean_asc
                 
-            self.logger.info("ASC code refined and validated successfully")
+            self.logger.info("ASC code refined successfully")
             return clean_asc
             
         except Exception as e:

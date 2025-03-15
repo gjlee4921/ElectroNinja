@@ -1,5 +1,4 @@
-#right_panel.py
-
+# right_panel.py
 
 import logging
 from PyQt5.QtWidgets import (
@@ -19,6 +18,7 @@ class RightPanel(QFrame):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.is_processing = False  # Track if we're processing a request
         self.initUI()
         
     def initUI(self):
@@ -46,7 +46,7 @@ class RightPanel(QFrame):
         
     def onSendMessage(self, text):
         """Handle a new message from the user"""
-        if not text.strip():
+        if not text.strip() or self.is_processing:
             return
             
         # Add message to chat panel
@@ -57,11 +57,37 @@ class RightPanel(QFrame):
         
         # Emit signal to notify parent
         self.messageSent.emit(text)
+        
+    def set_processing(self, is_processing):
+        """
+        Set whether circuit processing is in progress.
+        This disables the send button during processing.
+        
+        Args:
+            is_processing (bool): True if processing is active, False otherwise
+        """
+        self.is_processing = is_processing
+        
+        # Update send button state
+        self.chat_input.send_button.setEnabled(not is_processing)
+        
+        # Update styling based on state
+        if is_processing:
+            self.chat_input.send_button.setStyleSheet("""
+                background-color: #555555;
+                color: #999999;
+                border-radius: 8px;
+            """)
+        else:
+            self.chat_input.send_button.setStyleSheet("")  # Reset to default styling
             
-    # Update the receive_message method in electroninja/ui/panels/right_panel.py
-
     def receive_message(self, message):
-        """Display a message from the assistant"""
+        """
+        Display a message from the assistant
+        
+        Args:
+            message (str): Message to display
+        """
         # Avoid adding empty messages or extremely similar consecutive messages
         if not message or not message.strip():
             return
@@ -82,3 +108,7 @@ class RightPanel(QFrame):
     def clear_chat(self):
         """Clear all chat messages"""
         self.chat_panel.clear_chat()
+        
+    def is_input_enabled(self):
+        """Check if the input is enabled"""
+        return not self.is_processing

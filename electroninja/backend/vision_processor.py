@@ -2,7 +2,6 @@ import logging
 from typing import Optional
 from electroninja.config.settings import Config
 from electroninja.llm.vision_analyser import VisionAnalyzer
-from electroninja.utils.error_handler import ModelError
 
 logger = logging.getLogger('electroninja')
 

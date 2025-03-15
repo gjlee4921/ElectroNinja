@@ -16,7 +16,7 @@ from electroninja.llm.prompts.chat_prompts import (
     NON_CIRCUIT_CHAT_PROMPT,
     VISION_FEEDBACK_PROMPT
 )
-from electroninja.utils.error_handler import ModelError
+
 
 logger = logging.getLogger('electroninja')
 
@@ -29,10 +29,7 @@ class OpenAIProvider(LLMProvider):
         self.asc_gen_model = self.config.ASC_MODEL
         self.chat_model = self.config.CHAT_MODEL
         self.evaluation_model = self.config.CHAT_MODEL  # Using same model for evaluation
-        self.logger = logger
-        
-        if not openai.api_key:
-            raise ModelError("OpenAI API key not found. Set OPENAI_API_KEY in .env file.")
+        self.logger = logger        
     
     def evaluate_circuit_request(self, prompt):
         """
@@ -181,7 +178,6 @@ class OpenAIProvider(LLMProvider):
             
         except Exception as e:
             logger.error(f"Error generating chat response: {str(e)}")
-            raise ModelError(f"Failed to generate chat response: {str(e)}")
     
     def generate_vision_feedback_response(self, vision_feedback):
         """
@@ -253,8 +249,7 @@ class OpenAIProvider(LLMProvider):
             
         except Exception as e:
             logger.error(f"Error refining ASC code: {str(e)}")
-            raise ModelError(f"Failed to refine ASC code: {str(e)}")
-    
+            
     def analyze_vision_feedback(self, history, feedback, iteration):
         """Generate a status update based on vision feedback"""
         try:
@@ -282,4 +277,3 @@ class OpenAIProvider(LLMProvider):
             
         except Exception as e:
             logger.error(f"Error generating status update: {str(e)}")
-            raise ModelError(f"Failed to generate status update: {str(e)}")

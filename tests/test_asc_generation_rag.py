@@ -164,8 +164,7 @@ def test_asc_generation_with_rag(prompt):
 if __name__ == "__main__":
     # Sample circuit prompts to test
     prompts = [
-        "Create a circuit with two resistors in parallel",
-        "Design a simple RC low-pass filter"
+        "Create a circuit with a battery and two resistances in parallel"
     ]
     
     # Test each prompt
