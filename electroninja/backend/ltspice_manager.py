@@ -2,7 +2,7 @@ import logging
 import os
 from typing import Tuple, Optional
 from electroninja.config.settings import Config
-from electroninja.core.ltspice.interface import LTSpiceInterface
+from electroninja.ltspice import LTSpiceInterface
 
 logger = logging.getLogger('electroninja')
 

@@ -2,14 +2,13 @@ import os
 import re
 import time
 import logging
-import platform
 import subprocess
 import shutil
 import psutil
 from electroninja.config.settings import Config
 import fitz  # PyMuPDF for PDF to image conversion
 from PIL import Image
-from pywinauto import Application, timings
+from pywinauto import Application
 from pywinauto.keyboard import send_keys  # For global keystroke sending
 
 # Set up logging
@@ -44,10 +43,6 @@ class LTSpiceInterface:
             logger.warning(f"LTSpice executable not found at '{self.ltspice_path}'")
         else:
             logger.info(f"LTSpice found at '{self.ltspice_path}'")
-        try:
-            timings.set_timeout_period(3.0)
-        except Exception as e:
-            logger.warning(f"Could not set pywinauto timings: {e}")
     
     def process_circuit(self, asc_code_or_path, prompt_id=1, iteration=0):
         """
