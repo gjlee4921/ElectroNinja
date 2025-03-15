@@ -56,7 +56,7 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
         if update_callbacks and "vision_feedback" in update_callbacks:
             update_callbacks["vision_feedback"](vision_result)
         if vision_result.strip() == 'Y':
-            complete_response = await asyncio.to_thread(chat_generator.generate_response, "Your circuit is complete!")
+            complete_response = await asyncio.to_thread(chat_generator.generate_feedback_response, "Your circuit is complete!")
             if update_callbacks and "final_complete_chat_response" in update_callbacks:
                 update_callbacks["final_complete_chat_response"](complete_response)
             return
