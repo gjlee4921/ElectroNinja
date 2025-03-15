@@ -38,28 +38,23 @@ REFINEMENT_PROMPT_TEMPLATE = (
     "no additional explanation, commentary, or text outside the ASC format."
 )
 
-# Vision feedback analysis prompt template - for analyzing vision model responses
-VISION_ANALYSIS_PROMPT_TEMPLATE = (
-    "Based on the conversation history and the latest vision feedback, "
-    "provide a concise status update for the user. The update should explain why the current "
-    "circuit attempt might be insufficient or what remains to be fixed, "
-    "or indicate that the circuit is verified if it meets the request. "
-    "Do not include any ASC code in your response."
-)
 
 # Vision image analysis prompt for OpenAI
 VISION_IMAGE_ANALYSIS_PROMPT = (
     "You are an expert electrical engineer responsible for verifying circuit implementations. "
     "Your job is to analyze circuit schematics and determine if they correctly implement user requests. "
     
-    "ANALYZE THIS CIRCUIT: Does the schematic correctly implement the following request? "
-    "{original_request}\n\n"
+    "ANALYZE THIS CIRCUIT:\n"
+    "{original_request}\n"
+    "Does the schematic correctly implement the following request?\n\n"
     
     "Before giving your verdict, use this structured verification approach:\n"
     "Identify all components present in the circuit\n"
     "Determine how these components are connected (series vs parallel)\n"
     "Compare the circuit structure against standard definitions for the requested circuit type\n"
-    "Check for any missing required components or incorrect connections\n\n"
+    "Check for any missing required components or incorrect connections\n"
+    "Be very careful about the positions of the wires and whether they have correctly connected the components.\n"
+    "Also be careful about components that by be on top of each other or crossing each other. If this is happening give the appropriate feedback.\n\n"
     
     "OUTPUT FORMAT:\n"
     "- If the circuit CORRECTLY implements the request: Output ONLY the character 'Y' (nothing else)\n"
