@@ -1,8 +1,8 @@
 # main.py
-
 import sys
 import os
 import logging
+import asyncio
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QFont
 import ctypes
@@ -11,20 +11,16 @@ import ctypes
 if sys.platform == 'win32':
     try:
         ctypes.OleDLL('ole32.dll').CoInitialize(None)
-    except:
+    except Exception:
         pass
 
 from electroninja.config.logging_config import setup_logging
 from electroninja.config.settings import Config
 from electroninja.ui.main_window import MainWindow
-
-# 1) Import your styling utilities
 from electroninja.ui.styles import STYLE_SHEET, setup_fonts
-
 
 def main():
     """Main entry point for the application"""
-    # Set up logging
     setup_logging()
     logger = logging.getLogger('electroninja')
     logger.info("ElectroNinja starting...")
@@ -32,13 +28,9 @@ def main():
     # Create Qt application
     app = QApplication(sys.argv)
     
-    # 2) Setup any custom fonts you might have
+    # Setup custom fonts and stylesheet
     setup_fonts(app)
-
-    # 3) Apply the dark theme stylesheet
     app.setStyleSheet(STYLE_SHEET)
-
-    # Set default font (optional)
     default_font = QFont("Segoe UI", 10)
     app.setFont(default_font)
     
@@ -46,13 +38,22 @@ def main():
     config = Config()
     config.ensure_directories()
 
-    # Create and show main window
+    # Create and show main window; store reference to avoid GC.
     window = MainWindow()
     window.show()
     
     logger.info("ElectroNinja UI initialized and ready")
-    return app.exec_()
-
+    return app, window
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Keep a reference to the window so it isn't garbage-collected.
+    app, window = main()
+    try:
+        from qasync import QEventLoop
+    except ImportError:
+        raise ImportError("Please install qasync: pip install qasync")
+    
+    loop = QEventLoop(app)
+    asyncio.set_event_loop(loop)
+    with loop:
+        loop.run_forever()

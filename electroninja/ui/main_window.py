@@ -1,8 +1,7 @@
 # electroninja/ui/main_window.py
-
 import logging
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout
-from PyQt5.QtCore import Qt
+import asyncio
+from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QApplication
 from electroninja.ui.components.top_bar import TopBar
 from electroninja.ui.panels.left_panel import LeftPanel
 from electroninja.ui.panels.middle_panel import MiddlePanel
@@ -17,8 +16,8 @@ from electroninja.backend.ltspice_manager import LTSpiceManager
 from electroninja.backend.vision_processor import VisionProcessor
 from electroninja.llm.vector_store import VectorStore
 
-# Import our pipeline worker
-from electroninja.ui.workers.pipeline_worker import PipelineWorker
+# Import our async pipeline worker
+from electroninja.ui.workers.pipeline_worker import run_pipeline
 
 logger = logging.getLogger('electroninja')
 
@@ -82,8 +81,23 @@ class MainWindow(QMainWindow):
         self.left_panel.clear_code()
         self.middle_panel.clear_image()
 
-        # Create and start the pipeline worker.
-        self.pipeline_worker = PipelineWorker(
+        # Dictionary of callback functions for UI updates.
+        update_callbacks = {
+            "evaluation_done": self.on_evaluation_done,
+            "non_circuit_response": self.on_non_circuit_response,
+            "initial_chat_response": self.on_initial_chat_response,
+            "asc_code_generated": self.on_asc_code_generated,
+            "ltspice_processed": self.on_ltspice_processed,
+            "vision_feedback": self.on_vision_feedback,
+            "feedback_chat_response": self.on_feedback_chat_response,
+            "asc_refined": self.on_asc_refined,
+            "final_complete_chat_response": self.on_final_complete_chat_response,
+            "iteration_update": self.on_iteration_update,
+            "processing_finished": self.on_processing_finished,
+        }
+
+        # Launch the asynchronous pipeline.
+        asyncio.create_task(run_pipeline(
             user_message=message,
             evaluator=self.evaluator,
             chat_generator=self.chat_generator,
@@ -91,24 +105,11 @@ class MainWindow(QMainWindow):
             ltspice_manager=self.ltspice_manager,
             vision_processor=self.vision_processor,
             prompt_id=self.prompt_id,
-            max_iterations=self.max_iterations
-        )
-        # Connect the worker's signals to update UI components.
-        self.pipeline_worker.evaluationDone.connect(self.on_evaluation_done)
-        self.pipeline_worker.nonCircuitResponse.connect(self.on_non_circuit_response)
-        self.pipeline_worker.initialChatResponse.connect(self.on_initial_chat_response)
-        self.pipeline_worker.ascCodeGenerated.connect(self.on_asc_code_generated)
-        self.pipeline_worker.ltspiceProcessed.connect(self.on_ltspice_processed)
-        self.pipeline_worker.visionFeedback.connect(self.on_vision_feedback)
-        self.pipeline_worker.feedbackChatResponse.connect(self.on_feedback_chat_response)
-        self.pipeline_worker.ascRefined.connect(self.on_asc_refined)
-        self.pipeline_worker.finalCompleteChatResponse.connect(self.on_final_complete_chat_response)
-        self.pipeline_worker.iterationUpdate.connect(self.on_iteration_update)
-        self.pipeline_worker.processingFinished.connect(self.on_processing_finished)
+            max_iterations=self.max_iterations,
+            update_callbacks=update_callbacks
+        ))
 
-        self.pipeline_worker.start()
-
-    # --- Signal Handlers ---
+    # --- Callback Handlers ---
     def on_evaluation_done(self, is_circuit):
         logger.info(f"Evaluation completed: is_circuit={is_circuit}")
 
@@ -145,3 +146,19 @@ class MainWindow(QMainWindow):
 
     def on_processing_finished(self):
         self.right_panel.set_processing(False)
+
+if __name__ == "__main__":
+    import sys
+    import asyncio
+    try:
+        from qasync import QEventLoop
+    except ImportError:
+        raise ImportError("Please install qasync to run the async event loop integration: pip install qasync")
+    
+    app = QApplication(sys.argv)
+    loop = QEventLoop(app)
+    asyncio.set_event_loop(loop)
+    window = MainWindow()
+    window.show()
+    with loop:
+        loop.run_forever()
