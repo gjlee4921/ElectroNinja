@@ -61,7 +61,8 @@ class VisionAnalyzer:
                             {
                                 "type": "image_url",
                                 "image_url": {
-                                    "url": f"data:image/png;base64,{image_data}"
+                                    "url": f"data:image/png;base64,{image_data}",
+                                    "detail": "high",
                                 }
                             }
                         ]

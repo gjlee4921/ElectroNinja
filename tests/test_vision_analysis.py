@@ -70,9 +70,7 @@ if __name__ == "__main__":
         "data", "output", "prompt1", "output0", "image.png"
     )
     default_requests = [
-        "Design a voltage divider circuit",
-        "Create a circuit with two resistors in parallel",
-        "Make an RC low-pass filter"
+        "Create a circuit with 6 resistances in parallel and a battery 6V"
     ]
     for request in default_requests:
         test_vision_analysis(default_path, request)
