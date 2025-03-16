@@ -4,11 +4,11 @@ import logging
 from electroninja.config.settings import Config
 from electroninja.llm.providers.base import LLMProvider
 from electroninja.llm.prompts.circuit_prompts import (
-    GENERAL_INSTRUCTION,
-    SAFETY_FOR_AGENT,
+    ASC_SYSTEM_PROMPT,
     REFINEMENT_PROMPT_TEMPLATE,
     CIRCUIT_RELEVANCE_EVALUATION_PROMPT,
-    RAG_ASC_GENERATION_PROMPT
+    RAG_ASC_GENERATION_PROMPT,
+    MERGING_PROMPT
 )
 from electroninja.llm.prompts.chat_prompts import (
     CIRCUIT_CHAT_PROMPT,
@@ -25,12 +25,13 @@ class OpenAIProvider(LLMProvider):
         openai.api_key = self.config.OPENAI_API_KEY or os.getenv("OPENAI_API_KEY")
         self.asc_gen_model = self.config.ASC_MODEL
         self.chat_model = self.config.CHAT_MODEL
-        self.evaluation_model = self.config.CHAT_MODEL  # Using same model for evaluation
+        self.evaluation_model = self.config.EVALUATION_MODEL  
+        self.merger_model = self.config.MERGER_MODEL
         self.logger = logger        
     
     def evaluate_circuit_request(self, prompt: str) -> bool:
         try:
-            evaluation_prompt = f"{GENERAL_INSTRUCTION}\n\n{CIRCUIT_RELEVANCE_EVALUATION_PROMPT.format(prompt=prompt)}"
+            evaluation_prompt = f"{CIRCUIT_RELEVANCE_EVALUATION_PROMPT.format(prompt=prompt)}"
             logger.info(f"Evaluating if request is circuit-related: {prompt}")
             response = openai.ChatCompletion.create(
                 model=self.evaluation_model,
@@ -52,7 +53,7 @@ class OpenAIProvider(LLMProvider):
     
     def generate_asc_code(self, prompt: str, examples=None) -> str:
         self.logger.info(f"Generating ASC code for request: {prompt}")
-        system_prompt = f"{GENERAL_INSTRUCTION}\n\n{SAFETY_FOR_AGENT}"
+        system_prompt = f"{ASC_SYSTEM_PROMPT}"
         user_prompt = self._build_prompt(prompt, examples)
         try:
             response = openai.ChatCompletion.create(
@@ -99,7 +100,7 @@ class OpenAIProvider(LLMProvider):
     
     def generate_chat_response(self, prompt: str) -> str:
         try:
-            chat_prompt = f"{GENERAL_INSTRUCTION}\n{CIRCUIT_CHAT_PROMPT.format(prompt=prompt)}"
+            chat_prompt = f"{CIRCUIT_CHAT_PROMPT.format(prompt=prompt)}"
             logger.info(f"Generating chat response for prompt: {prompt}")
             response = openai.ChatCompletion.create(
                 model=self.chat_model,
@@ -141,7 +142,7 @@ class OpenAIProvider(LLMProvider):
             logger.info(f"Refining ASC code based on feedback")
             response = openai.ChatCompletion.create(
                 model=self.asc_gen_model,
-                messages=[{"role": "system", "content": GENERAL_INSTRUCTION},
+                messages=[{"role": "system", "content": ASC_SYSTEM_PROMPT},
                           {"role": "user", "content": prompt}]
             )
             refined_asc = response.choices[0].message.content.strip()
@@ -150,3 +151,26 @@ class OpenAIProvider(LLMProvider):
             logger.error(f"Error refining ASC code: {str(e)}")
             return "Error refining ASC code"
     
+    def merge_requests(self, request_dict: dict) -> str:
+        """
+        Merge multiple circuit requests into one final request using the MERGING_PROMPT.
+        The request_dict should be of the form:
+        {"request1": "initial prompt", "request2": "follow-up", ...}
+        """
+        initial = request_dict['request1']
+        # Gather follow-ups in order
+        follow_ups = "\n".join(
+            request_dict[key] for key in sorted(request_dict.keys()) if key != "request1"
+        )
+        merging_prompt = MERGING_PROMPT.format(request1=initial, follow_ups=follow_ups)
+        self.logger.info("Merging requests using prompt: " + merging_prompt)
+        try:
+            response = openai.ChatCompletion.create(
+                model=self.merger_model,
+                messages=[{"role": "user", "content": merging_prompt}]
+            )
+            merged_response = response.choices[0].message.content.strip()
+            return merged_response
+        except Exception as e:
+            self.logger.error("Error merging requests: " + str(e))
+            return initial

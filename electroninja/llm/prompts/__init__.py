@@ -1,13 +1,13 @@
 # electroninja/llm/prompts/__init__.py
 
 from electroninja.llm.prompts.circuit_prompts import (
-    GENERAL_INSTRUCTION,
-    SAFETY_FOR_AGENT,
+    ASC_SYSTEM_PROMPT,
     ASC_GENERATION_PROMPT,
     REFINEMENT_PROMPT_TEMPLATE,
     VISION_IMAGE_ANALYSIS_PROMPT,
     CIRCUIT_RELEVANCE_EVALUATION_PROMPT,
-    RAG_ASC_GENERATION_PROMPT
+    RAG_ASC_GENERATION_PROMPT,
+    MERGING_PROMPT
 )
 
 from electroninja.llm.prompts.chat_prompts import (
@@ -16,8 +16,7 @@ from electroninja.llm.prompts.chat_prompts import (
 )
 
 __all__ = [
-    "GENERAL_INSTRUCTION",
-    "SAFETY_FOR_AGENT",
+    "ASC_SYSTEM_PROMPT",
     "ASC_GENERATION_PROMPT",
     "REFINEMENT_PROMPT_TEMPLATE",
     "VISION_IMAGE_ANALYSIS_PROMPT",
@@ -32,5 +31,6 @@ __all__ = [
     "GENERAL_HELP_RESPONSE",
     "LTSPICE_EXPLANATION",
     "CIRCUIT_CHAT_PROMPT",
-    "VISION_FEEDBACK_PROMPT"
+    "VISION_FEEDBACK_PROMPT",
+    "MERGING_PROMPT",
 ]
