@@ -149,7 +149,12 @@ class MainWindow(QMainWindow):
         else:
             # Merge all requests using the merger to maintain context
             merged_request = self.merger.merge_requests(self.request_history)
-            self.right_panel.receive_message(f"Merged request: {merged_request}")
+            # REMOVED: No longer sending the merged request to the chat
+            # self.right_panel.receive_message(f"Merged request: {merged_request}")
+            
+            # Log the merged request instead of showing it in the chat
+            logger.info(f"Merged request: {merged_request}")
+            
             # Increment prompt session ID for follow-up modifications
             self.current_prompt_id += 1
             # Reset history to contain only the merged request
