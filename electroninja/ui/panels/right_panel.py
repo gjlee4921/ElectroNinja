@@ -50,9 +50,9 @@ class RightPanel(QFrame):
         """Handle a new message from the user"""
         if not text.strip() or self.is_processing:
             return
-            
-        # Don't add user message to chat panel here - let main_window handle it
-        # to avoid duplication
+        
+        # Add user message to chat panel immediately
+        self.chat_panel.add_message(text, is_user=True)
             
         # Clear input
         self.chat_input.message_input.clear()

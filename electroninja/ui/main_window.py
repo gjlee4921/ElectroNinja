@@ -122,8 +122,10 @@ class MainWindow(QMainWindow):
         """
         Process user messages and dispatch to appropriate handlers.
         """
-        # Add the user message as a chat bubble
-        self.right_panel.chat_panel.add_message(message, is_user=True)
+        # REMOVED: No longer adding the user message to chat here
+        # The RightPanel now handles this immediately when the send button is clicked
+        # self.right_panel.chat_panel.add_message(message, is_user=True)
+        
         # Disable further input while processing
         self.right_panel.set_processing(True)
         # For a new session, clear previous code/image
@@ -149,9 +151,6 @@ class MainWindow(QMainWindow):
         else:
             # Merge all requests using the merger to maintain context
             merged_request = self.merger.merge_requests(self.request_history)
-            # REMOVED: No longer sending the merged request to the chat
-            # self.right_panel.receive_message(f"Merged request: {merged_request}")
-            
             # Log the merged request instead of showing it in the chat
             logger.info(f"Merged request: {merged_request}")
             
