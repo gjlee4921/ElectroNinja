@@ -51,14 +51,22 @@ class RightPanel(QFrame):
         if not text.strip() or self.is_processing:
             return
         
-        # Add user message to chat panel immediately
+        # Force immediate display of user message in chat
         self.chat_panel.add_message(text, is_user=True)
+        
+        # Force layout update to ensure message shows immediately
+        self.chat_panel.chat_container.updateGeometry()
+        self.chat_panel.chat_container.update()
+        
+        # Process and animate scroll immediately
+        self.chat_panel.smooth_scroll_to_bottom()
             
         # Clear input
         self.chat_input.message_input.clear()
         
-        # Emit signal to notify parent
-        self.messageSent.emit(text)
+        # Process the message by emitting signal to parent
+        # Use short delay to ensure UI updates happen first
+        QTimer.singleShot(10, lambda: self.messageSent.emit(text))
         
     def set_processing(self, is_processing):
         """
