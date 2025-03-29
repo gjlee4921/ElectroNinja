@@ -2,12 +2,14 @@ import asyncio
 import logging
 import traceback
 import time
+import functools
+import concurrent.futures
 
 logger = logging.getLogger('electroninja')
 
 async def run_pipeline(user_message, evaluator, chat_generator, circuit_generator,
                        ltspice_manager, vision_processor, prompt_id=1, max_iterations=3,
-                       update_callbacks=None, skip_evaluation=False):
+                       update_callbacks=None, skip_evaluation=False, executor=None):
     """
     Asynchronous pipeline worker.
     If skip_evaluation is True, the evaluation step is skipped and the request is assumed to be relevant.
@@ -23,20 +25,41 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
         max_iterations: Maximum number of refinement iterations to attempt
         update_callbacks: Dictionary of callback functions for UI updates
         skip_evaluation: Whether to skip the evaluation step (for follow-up requests)
+        executor: Optional thread pool executor to use for background tasks
     """
     pipeline_start = time.time()
+    active_tasks = set()
+    
+    # Helper function to create and track tasks
+    def create_task(coro):
+        task = asyncio.create_task(coro)
+        active_tasks.add(task)
+        task.add_done_callback(lambda t: active_tasks.discard(t))
+        return task
+    
+    # Helper for running functions in a thread
+    async def run_in_thread(func, *args, **kwargs):
+        if executor:
+            # Use the provided executor
+            return await asyncio.get_event_loop().run_in_executor(
+                executor, 
+                functools.partial(func, *args, **kwargs)
+            )
+        else:
+            # Fall back to asyncio.to_thread if no executor provided
+            return await asyncio.to_thread(func, *args, **kwargs)
     
     try:
         # Step 1: (Optionally) Evaluate if the request is circuit-related
         if not skip_evaluation:
             # Run the evaluation in a separate thread to avoid blocking the event loop
-            is_circuit = await asyncio.to_thread(evaluator.is_circuit_related, user_message)
+            is_circuit = await run_in_thread(evaluator.is_circuit_related, user_message)
             # Callback to update UI with evaluation result
             if update_callbacks and "evaluation_done" in update_callbacks:
                 update_callbacks["evaluation_done"](is_circuit)
             # If not circuit-related, generate a simple response and exit
             if not is_circuit:
-                response = await asyncio.to_thread(chat_generator.generate_response, user_message)
+                response = await run_in_thread(chat_generator.generate_response, user_message)
                 if update_callbacks and "non_circuit_response" in update_callbacks:
                     update_callbacks["non_circuit_response"](response)
                 return
@@ -47,12 +70,12 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
 
         # Step 2: Generate initial chat response and ASC code concurrently
         # Create tasks for parallel execution
-        chat_task = asyncio.create_task(
-            asyncio.to_thread(chat_generator.generate_response, user_message)
+        chat_task = create_task(
+            run_in_thread(chat_generator.generate_response, user_message)
         )
         
-        asc_task = asyncio.create_task(
-            asyncio.to_thread(circuit_generator.generate_asc_code, user_message)
+        asc_task = create_task(
+            run_in_thread(circuit_generator.generate_asc_code, user_message)
         )
         
         # Await the chat response first and update immediately for better UX
@@ -66,7 +89,8 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
             update_callbacks["asc_code_generated"](asc_code)
 
         # Step 3: Process LTSpice for iteration 0 (initial circuit)
-        ltspice_result = await asyncio.to_thread(ltspice_manager.process_circuit, asc_code, prompt_id, 0)
+        ltspice_result = await run_in_thread(ltspice_manager.process_circuit, 
+                                            asc_code, prompt_id, 0)
         if ltspice_result:
             # Unpack result tuple (asc file path, image path)
             asc_path, image_path = ltspice_result
@@ -81,12 +105,14 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
 
         # Step 4: Get vision feedback for iteration 0
         # Analyze the circuit image to determine if it meets requirements
-        vision_result = await asyncio.to_thread(vision_processor.analyze_circuit_image, image_path, user_message)
+        vision_result = await run_in_thread(vision_processor.analyze_circuit_image, 
+                                           image_path, user_message)
         if update_callbacks and "vision_feedback" in update_callbacks:
             update_callbacks["vision_feedback"](vision_result)
             
         # Always generate a final feedback response using the same function
-        complete_response = await asyncio.to_thread(chat_generator.generate_feedback_response, vision_result)
+        complete_response = await run_in_thread(chat_generator.generate_feedback_response, 
+                                              vision_result)
         if update_callbacks and "final_complete_chat_response" in update_callbacks:
             update_callbacks["final_complete_chat_response"](complete_response)
             
@@ -105,17 +131,20 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
                 update_callbacks["iteration_update"](iteration)
                 
             # Generate feedback response explaining what needs to be fixed
-            feedback_response = await asyncio.to_thread(chat_generator.generate_feedback_response, vision_result)
+            feedback_response = await run_in_thread(chat_generator.generate_feedback_response, 
+                                                  vision_result)
             if update_callbacks and "feedback_chat_response" in update_callbacks:
                 update_callbacks["feedback_chat_response"](feedback_response)
                 
             # Refine the ASC code based on feedback and previous attempts
-            refined_code = await asyncio.to_thread(circuit_generator.refine_asc_code, user_message, history)
+            refined_code = await run_in_thread(circuit_generator.refine_asc_code, 
+                                             user_message, history)
             if update_callbacks and "asc_refined" in update_callbacks:
                 update_callbacks["asc_refined"](refined_code)
                 
             # Process refined circuit with LTSpice
-            ltspice_result = await asyncio.to_thread(ltspice_manager.process_circuit, refined_code, prompt_id, iteration)
+            ltspice_result = await run_in_thread(ltspice_manager.process_circuit, 
+                                               refined_code, prompt_id, iteration)
             if ltspice_result:
                 # Unpack result tuple
                 asc_path, image_path = ltspice_result
@@ -129,15 +158,21 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
                 break
                 
             # Analyze the refined circuit image
-            vision_result = await asyncio.to_thread(vision_processor.analyze_circuit_image, image_path, user_message)
+            vision_result = await run_in_thread(vision_processor.analyze_circuit_image, 
+                                              image_path, user_message)
             if update_callbacks and "vision_feedback" in update_callbacks:
                 update_callbacks["vision_feedback"](vision_result)
                 
             # Add this iteration to history for context in future refinements
-            history.append({"asc_code": refined_code, "vision_feedback": vision_result, "iteration": iteration})
+            history.append({
+                "asc_code": refined_code, 
+                "vision_feedback": vision_result, 
+                "iteration": iteration
+            })
             
             # Generate complete feedback response for this iteration
-            complete_response = await asyncio.to_thread(chat_generator.generate_feedback_response, vision_result)
+            complete_response = await run_in_thread(chat_generator.generate_feedback_response, 
+                                                  vision_result)
             if update_callbacks and "final_complete_chat_response" in update_callbacks:
                 update_callbacks["final_complete_chat_response"](complete_response)
                 
@@ -148,11 +183,37 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
             # Increment iteration counter
             iteration += 1
             
+        logger.info(f"Pipeline completed after {iteration} iterations in "
+                   f"{time.time() - pipeline_start:.2f} seconds")
+            
+    except asyncio.CancelledError:
+        logger.info("Pipeline task cancelled")
+        # Cancel any active subtasks
+        for task in active_tasks:
+            if not task.done():
+                task.cancel()
+        raise
     except Exception as e:
         # Handle any exceptions in the pipeline
         logger.error("Exception in async pipeline: " + str(e))
         traceback.print_exc()
     finally:
+        # Cancel any remaining active tasks
+        for task in active_tasks:
+            if not task.done():
+                task.cancel()
+        
+        # Wait for tasks to finish cancellation (with timeout)
+        if active_tasks:
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*[asyncio.shield(task) for task in active_tasks], 
+                                  return_exceptions=True),
+                    timeout=0.5
+                )
+            except (asyncio.TimeoutError, Exception) as e:
+                logger.warning(f"Some tasks didn't complete cancellation in time: {str(e)}")
+                
         # Always call the processing_finished callback to re-enable UI
         if update_callbacks and "processing_finished" in update_callbacks:
             update_callbacks["processing_finished"]()

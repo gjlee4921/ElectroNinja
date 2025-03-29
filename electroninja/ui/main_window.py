@@ -1,6 +1,9 @@
 # electroninja/ui/main_window.py
 import logging
 import asyncio
+import traceback
+import functools
+import concurrent.futures
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QApplication
 from PyQt5.QtCore import QTimer
 from electroninja.ui.components.top_bar import TopBar
@@ -58,6 +61,11 @@ class MainWindow(QMainWindow):
         self.request_history = {}
         # Used to determine which prompt folder to use
         self.current_prompt_id = 1
+        # Track all active asyncio tasks for proper cleanup
+        self.active_tasks = set()
+        # Create a thread pool executor with a fixed number of workers
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, 
+                                                             thread_name_prefix="electroninja_worker")
         # Initialize backend components
         self.init_backend()
         # Set up the user interface
@@ -119,6 +127,28 @@ class MainWindow(QMainWindow):
         # Connect the message signal from chat panel to our handler
         self.right_panel.messageSent.connect(self.handle_user_message)
 
+    def closeEvent(self, event):
+        """Handle window close event to clean up resources properly."""
+        logger.info("Application closing, cleaning up resources...")
+        
+        # Cancel any running asyncio tasks
+        for task in self.active_tasks:
+            if not task.done():
+                task.cancel()
+        
+        # Shutdown the thread executor
+        self.executor.shutdown(wait=False)
+        
+        # Call the parent's closeEvent
+        super().closeEvent(event)
+
+    def create_tracked_task(self, coro):
+        """Create and track asyncio tasks to ensure proper cleanup."""
+        task = asyncio.create_task(coro)
+        self.active_tasks.add(task)
+        task.add_done_callback(lambda t: self.active_tasks.discard(t))
+        return task
+
     def handle_user_message(self, message):
         """
         Process user messages and dispatch to appropriate handlers.
@@ -136,8 +166,7 @@ class MainWindow(QMainWindow):
         request_number = len(self.request_history) + 1
         self.request_history[f"request{request_number}"] = message
 
-        # Start processing in a separate thread to avoid blocking UI
-        # Use a background task for the evaluation to keep UI responsive
+        # Start processing in a background task to keep UI responsive
         self.process_message_in_background(message, request_number)
 
     def process_message_in_background(self, message, request_number):
@@ -145,59 +174,84 @@ class MainWindow(QMainWindow):
         
         # Create background task for processing
         async def background_task():
-            # First, evaluate if the message is circuit-related
-            is_relevant = await asyncio.to_thread(self.evaluator.is_circuit_related, message)
-            
-            if not is_relevant:
-                response = await asyncio.to_thread(self.chat_generator.generate_response, message)
-                self.right_panel.receive_message(response)
-                self.right_panel.set_processing(False)
-                return
-
-            # If this is the first request in the session, use it directly
-            if request_number == 1:
-                merged_request = message
-            else:
-                # Merge all requests using the merger to maintain context
-                merged_request = await asyncio.to_thread(self.merger.merge_requests, self.request_history)
-                # Log the merged request instead of showing it in the chat
-                logger.info(f"Merged request: {merged_request}")
+            try:
+                # First, evaluate if the message is circuit-related
+                is_relevant = await asyncio.get_event_loop().run_in_executor(
+                    self.executor,
+                    self.evaluator.is_circuit_related,
+                    message
+                )
                 
-                # Increment prompt session ID for follow-up modifications
-                self.current_prompt_id += 1
-                # Reset history to contain only the merged request
-                self.request_history = {"request1": merged_request}
+                if not is_relevant:
+                    response = await asyncio.get_event_loop().run_in_executor(
+                        self.executor,
+                        self.chat_generator.generate_response,
+                        message
+                    )
+                    self.right_panel.receive_message(response)
+                    self.right_panel.set_processing(False)
+                    return
 
-            # Launch the pipeline for circuit processing
-            # For follow-up merged requests, skip evaluation since we've already merged
-            skip_eval = (request_number > 1)
-            await run_pipeline(
-                user_message=merged_request,
-                evaluator=self.evaluator,
-                chat_generator=self.chat_generator,
-                circuit_generator=self.circuit_generator,
-                ltspice_manager=self.ltspice_manager,
-                vision_processor=self.vision_processor,
-                prompt_id=self.current_prompt_id,
-                max_iterations=self.max_iterations,
-                update_callbacks={
-                    "evaluation_done": self.on_evaluation_done,
-                    "non_circuit_response": self.on_non_circuit_response,
-                    "initial_chat_response": self.on_initial_chat_response,
-                    "asc_code_generated": self.on_asc_code_generated,
-                    "ltspice_processed": self.on_ltspice_processed,
-                    "vision_feedback": self.on_vision_feedback,
-                    "feedback_chat_response": self.on_feedback_chat_response,
-                    "asc_refined": self.on_asc_refined,
-                    "final_complete_chat_response": self.on_final_complete_chat_response,
-                    "iteration_update": self.on_iteration_update,
-                    "processing_finished": self.on_processing_finished,
-                },
-                skip_evaluation=skip_eval
-            )
-        
-        # Start the background task
-        asyncio.create_task(background_task())
+                # If this is the first request in the session, use it directly
+                if request_number == 1:
+                    merged_request = message
+                else:
+                    # Merge all requests using the merger to maintain context
+                    merged_request = await asyncio.get_event_loop().run_in_executor(
+                        self.executor,
+                        self.merger.merge_requests,
+                        self.request_history
+                    )
+                    # Log the merged request instead of showing it in the chat
+                    logger.info(f"Merged request: {merged_request}")
+                    
+                    # Increment prompt session ID for follow-up modifications
+                    self.current_prompt_id += 1
+                    # Reset history to contain only the merged request
+                    self.request_history = {"request1": merged_request}
+
+                # Launch the pipeline for circuit processing
+                # For follow-up merged requests, skip evaluation since we've already merged
+                skip_eval = (request_number > 1)
+                await run_pipeline(
+                    user_message=merged_request,
+                    evaluator=self.evaluator,
+                    chat_generator=self.chat_generator,
+                    circuit_generator=self.circuit_generator,
+                    ltspice_manager=self.ltspice_manager,
+                    vision_processor=self.vision_processor,
+                    prompt_id=self.current_prompt_id,
+                    max_iterations=self.max_iterations,
+                    update_callbacks={
+                        "evaluation_done": self.on_evaluation_done,
+                        "non_circuit_response": self.on_non_circuit_response,
+                        "initial_chat_response": self.on_initial_chat_response,
+                        "asc_code_generated": self.on_asc_code_generated,
+                        "ltspice_processed": self.on_ltspice_processed,
+                        "vision_feedback": self.on_vision_feedback,
+                        "feedback_chat_response": self.on_feedback_chat_response,
+                        "asc_refined": self.on_asc_refined,
+                        "final_complete_chat_response": self.on_final_complete_chat_response,
+                        "iteration_update": self.on_iteration_update,
+                        "processing_finished": self.on_processing_finished,
+                    },
+                    skip_evaluation=skip_eval,
+                    executor=self.executor  # Pass the executor to the pipeline
+                )
+            except asyncio.CancelledError:
+                # Task was cancelled, do any cleanup here
+                logger.info("Background task cancelled")
+                self.right_panel.set_processing(False)
+                raise
+            except Exception as e:
+                # Log any exceptions
+                logger.error(f"Error in background task: {str(e)}")
+                traceback.print_exc()
+                # Make sure UI is restored
+                self.right_panel.set_processing(False)
+            
+        # Start the background task with tracking
+        self.create_tracked_task(background_task())
 
     # --- Callback Handlers ---
     def on_evaluation_done(self, is_circuit):
