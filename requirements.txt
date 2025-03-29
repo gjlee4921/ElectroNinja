@@ -1,0 +1,12 @@
+pyautogui
+pillow
+openai
+PyQt5
+dotenv
+numpy
+faiss-cpu
+psutil
+PyMuPDF
+pywinauto
+pygetwindow
+typing
