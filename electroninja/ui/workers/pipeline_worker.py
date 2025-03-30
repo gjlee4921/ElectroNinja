@@ -4,15 +4,16 @@ import traceback
 import time
 import functools
 import concurrent.futures
+import os
 
 logger = logging.getLogger('electroninja')
 
 async def run_pipeline(user_message, evaluator, chat_generator, circuit_generator,
                        ltspice_manager, vision_processor, prompt_id=1, max_iterations=3,
-                       update_callbacks=None, skip_evaluation=False, executor=None):
+                       update_callbacks=None, skip_evaluation=False, executor=None, 
+                       description_creator=None, previous_description=None):
     """
-    Asynchronous pipeline worker.
-    If skip_evaluation is True, the evaluation step is skipped and the request is assumed to be relevant.
+    Asynchronous pipeline worker with description-centric workflow.
     
     Args:
         user_message: The user's message or merged request
@@ -26,6 +27,8 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
         update_callbacks: Dictionary of callback functions for UI updates
         skip_evaluation: Whether to skip the evaluation step (for follow-up requests)
         executor: Optional thread pool executor to use for background tasks
+        description_creator: Instance of CreateDescription for creating and saving circuit descriptions
+        previous_description: Previous circuit description (from last prompt) if available
     """
     pipeline_start = time.time()
     active_tasks = set()
@@ -68,14 +71,40 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
             if update_callbacks and "evaluation_done" in update_callbacks:
                 update_callbacks["evaluation_done"](True)
 
-        # Step 2: Generate initial chat response and ASC code concurrently
+        # Step 2: Generate circuit description first
+        if description_creator:
+            # Create description from previous description and new request
+            description = await run_in_thread(
+                description_creator.create_description,
+                previous_description if previous_description else "None", 
+                user_message
+            )
+            
+            if update_callbacks and "description_generated" in update_callbacks:
+                update_callbacks["description_generated"](description)
+            
+            # Save the description to a file
+            description_path = await run_in_thread(
+                description_creator.save_description, 
+                description, 
+                prompt_id
+            )
+            
+            logger.info(f"Using description for ASC generation: {description}")
+        else:
+            # If no description creator available, use the original message
+            description = user_message
+            logger.info("No description creator available, using original request")
+
+        # Step 3: Generate initial chat response and ASC code concurrently
         # Create tasks for parallel execution
         chat_task = create_task(
             run_in_thread(chat_generator.generate_response, user_message)
         )
         
+        # Use description for ASC generation instead of user_message
         asc_task = create_task(
-            run_in_thread(circuit_generator.generate_asc_code, user_message)
+            run_in_thread(circuit_generator.generate_asc_code, description)
         )
         
         # Await the chat response first and update immediately for better UX
@@ -88,7 +117,7 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
         if update_callbacks and "asc_code_generated" in update_callbacks:
             update_callbacks["asc_code_generated"](asc_code)
 
-        # Step 3: Process LTSpice for iteration 0 (initial circuit)
+        # Step 4: Process LTSpice for iteration 0 (initial circuit)
         ltspice_result = await run_in_thread(ltspice_manager.process_circuit, 
                                             asc_code, prompt_id, 0)
         if ltspice_result:
@@ -103,8 +132,8 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
                 update_callbacks["ltspice_processed"]((None, None, 0))
             return
 
-        # Step 4: Get vision feedback for iteration 0
-        # Analyze the circuit image to determine if it meets requirements
+        # Step 5: Get vision feedback for iteration 0
+        # Use the original user message for context in vision analysis
         vision_result = await run_in_thread(vision_processor.analyze_circuit_image, 
                                            image_path, user_message)
         if update_callbacks and "vision_feedback" in update_callbacks:
@@ -120,7 +149,7 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
         if vision_result.strip() == 'Y':
             return
 
-        # Step 5: Iterative refinement loop
+        # Step 6: Iterative refinement loop
         # Build history to track iterations for context
         history = [{"asc_code": asc_code, "vision_feedback": vision_result, "iteration": 0}]
         iteration = 1
@@ -137,8 +166,9 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
                 update_callbacks["feedback_chat_response"](feedback_response)
                 
             # Refine the ASC code based on feedback and previous attempts
+            # Use the description for refinement context, not the original user message
             refined_code = await run_in_thread(circuit_generator.refine_asc_code, 
-                                             user_message, history)
+                                             description, history)
             if update_callbacks and "asc_refined" in update_callbacks:
                 update_callbacks["asc_refined"](refined_code)
                 

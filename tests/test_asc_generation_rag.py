@@ -16,23 +16,31 @@ from electroninja.backend.circuit_generator import CircuitGenerator
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
-def test_asc_generation_rag():
-    prompt = "Create a circuit with a battery and two resistances in parallel"
-    print("\n====== TEST: ASC GENERATION WITH RAG ======")
-    print(f"Processing prompt: '{prompt}'")
+def test_asc_generation_from_description():
+    print("\n====== TEST: ASC GENERATION FROM DESCRIPTION ======")
     
-    # Initialize configuration and providers
+    # Path to the saved description file for prompt1
+    description_path = os.path.join("data", "output", "prompt1", "description.txt")
+    
+    if not os.path.exists(description_path):
+        print(f"Description file not found at: {description_path}")
+        return
+    
+    # Load the circuit description from file using utf-8 encoding
+    with open(description_path, "r", encoding="utf-8") as f:
+        description = f.read().strip()
+    
+    print("\nLoaded Circuit Description:")
+    print(description)
+    
+    # Initialize configuration, provider, vector store and CircuitGenerator
     config = Config()
     provider = OpenAIProvider(config)
-
-    # Initialize vector store and load examples
     vector_store = VectorStore(config)
     vector_store.load()
-    
-    # Create the CircuitGenerator from the backend
     circuit_generator = CircuitGenerator(provider, vector_store)
     
-    # Intercept OpenAI API calls to print raw input and output
+    # Intercept OpenAI API calls to print raw input and output for debugging
     original_create = openai.ChatCompletion.create
 
     def create_wrapper(**kwargs):
@@ -50,13 +58,13 @@ def test_asc_generation_rag():
     openai.ChatCompletion.create = create_wrapper
 
     try:
-        # Generate ASC code using the provided prompt and relevance flag
-        asc_code = circuit_generator.generate_asc_code(prompt)
-        print("\n=== FINAL ASC CODE ===")
+        # Generate ASC code using the description loaded from file
+        asc_code = circuit_generator.generate_asc_code(description)
+        print("\n=== FINAL ASC CODE GENERATED FROM DESCRIPTION ===")
         print(asc_code)
     finally:
-        # Restore the original ChatCompletion.create method
+        # Restore the original OpenAI API call
         openai.ChatCompletion.create = original_create
 
 if __name__ == "__main__":
-    test_asc_generation_rag()
+    test_asc_generation_from_description()

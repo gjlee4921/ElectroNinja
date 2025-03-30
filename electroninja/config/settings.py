@@ -22,6 +22,7 @@ class Config:
     ASC_MODEL = os.getenv("ASC_MODEL", "o3-mini")
     CHAT_MODEL = os.getenv("CHAT_MODEL", "gpt-4o-mini")
     EVALUATOR_MODEL = os.getenv("EVALUATOR_MODEL", "gpt-4o-mini")
+    DESCRIPTION_MODEL = os.getenv("DESCRIPTION_MODEL", "gpt-4o-mini")
     MERGER_MODEL = os.getenv("MERGER_MODEL", "gpt-4o-mini")
     
     # Vision configuration

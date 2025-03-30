@@ -8,7 +8,7 @@ from electroninja.llm.prompts.circuit_prompts import (
     REFINEMENT_PROMPT_TEMPLATE,
     CIRCUIT_RELEVANCE_EVALUATION_PROMPT,
     RAG_ASC_GENERATION_PROMPT,
-    MERGING_PROMPT
+    DESCRIPTION_PROMPT
 )
 from electroninja.llm.prompts.chat_prompts import (
     CIRCUIT_CHAT_PROMPT,
@@ -27,34 +27,71 @@ class OpenAIProvider(LLMProvider):
         self.chat_model = self.config.CHAT_MODEL
         self.evaluation_model = self.config.EVALUATION_MODEL  
         self.merger_model = self.config.MERGER_MODEL
+        self.description_model = self.config.DESCRIPTION_MODEL
         self.logger = logger        
-    
-    def evaluate_circuit_request(self, prompt: str) -> bool:
+        
+    def evaluate_circuit_request(self, prompt: str) -> str:
         try:
-            evaluation_prompt = f"{CIRCUIT_RELEVANCE_EVALUATION_PROMPT.format(prompt=prompt)}"
+            # Format the evaluation prompt with the new instructions
+            evaluation_prompt = CIRCUIT_RELEVANCE_EVALUATION_PROMPT.format(prompt=prompt)
             logger.info(f"Evaluating if request is circuit-related: {prompt}")
             response = openai.ChatCompletion.create(
                 model=self.evaluation_model,
                 messages=[{"role": "user", "content": evaluation_prompt}]
             )
+            # Return the raw result string: either 'N' or the component letters (e.g., "V, R, C")
             result = response.choices[0].message.content.strip()
-            is_circuit_related = result.upper().startswith('Y')
-            logger.info(f"Evaluation result for '{prompt}': {is_circuit_related}")
-            return is_circuit_related
+            logger.info(f"Evaluation result for '{prompt}': {result}")
+            return result
         except Exception as e:
             logger.error(f"Error evaluating request: {str(e)}")
-            return False
+            # In case of error, return "N" as a safe fallback.
+            return "N"
+
+        
+    def create_description(self, previous_description: str, new_request: str) -> str:
+        """
+        Merge a current circuit description with a new modification request to a new description.
+        
+        Args:
+            previous_description: The previous circuit description
+            new_request: The new modification request from the user
+            
+        Returns:
+            A merged, comprehensive circuit description
+        """
+        previous_description = previous_description if previous_description is not None else "None"
+
+        description_prompt = DESCRIPTION_PROMPT.format(
+            previous_description=previous_description,
+            new_request=new_request
+        )
+        self.logger.info("Generating description using prompt:\n" + description_prompt)
+        
+        try:
+            response = openai.ChatCompletion.create(
+                model=self.description_model,
+                messages=[{"role": "user", "content": description_prompt}]
+            )
+            new_description = response.choices[0].message.content.strip()
+            
+            self.logger.info("Merged result:\n" + new_description)
+            
+            return new_description
+        except Exception as e:
+            self.logger.error("Error generating description: " + str(e))
+            return new_request
     
     def extract_clean_asc_code(self, asc_code: str) -> str:
         if "Version 4" in asc_code:
             idx = asc_code.find("Version 4")
             return asc_code[idx:].strip()
         return asc_code.strip()
-    
-    def generate_asc_code(self, prompt: str, examples=None) -> str:
-        self.logger.info(f"Generating ASC code for request: {prompt}")
+
+    def generate_asc_code(self, description: str, examples=None) -> str:
+        self.logger.info(f"Generating ASC code for circuit description: {description}")
         system_prompt = f"{ASC_SYSTEM_PROMPT}"
-        user_prompt = self._build_prompt(prompt, examples)
+        user_prompt = self._build_prompt(description, examples)
         try:
             response = openai.ChatCompletion.create(
                 model=self.asc_gen_model,
@@ -71,10 +108,10 @@ class OpenAIProvider(LLMProvider):
         except Exception as e:
             self.logger.error(f"Error generating ASC code: {str(e)}")
             return "Error: Failed to generate circuit"
-    
-    def _build_prompt(self, request: str, examples=None) -> str:
+
+    def _build_prompt(self, description: str, examples=None) -> str:
         if not examples or len(examples) == 0:
-            return f"User's request: {request}\n\n{RAG_ASC_GENERATION_PROMPT}"
+            return f"Circuit description: {description}\n\n{RAG_ASC_GENERATION_PROMPT}"
         examples_text = ""
         for i, example in enumerate(examples, start=1):
             desc = example.get("metadata", {}).get("description", "No description")
@@ -92,9 +129,9 @@ class OpenAIProvider(LLMProvider):
                 f"-----------------\n\n"
             )
         return (
-            "Below are examples of circuits similar to the user's request:\n\n"
+            "Below are examples of circuits similar to the given description:\n\n"
             f"{examples_text}"
-            f"User's request: {request}\n\n"
+            f"Circuit description: {description}\n\n"
             f"{RAG_ASC_GENERATION_PROMPT}"
         )
     
@@ -129,7 +166,7 @@ class OpenAIProvider(LLMProvider):
             logger.error(f"Error generating vision feedback response: {str(e)}")
             return "Error generating vision feedback response"
     
-    def refine_asc_code(self, request: str, history: list) -> str:
+    def refine_asc_code(self, description: str, history: list) -> str:
         try:
             prompt = "Below are previous attempts and feedback:\n\n"
             for item in history:
@@ -137,9 +174,9 @@ class OpenAIProvider(LLMProvider):
                     prompt += f"Attempt {item.get('attempt', item.get('iteration', '?'))} ASC code:\n{item['asc_code']}\n\n"
                 if "vision_feedback" in item:
                     prompt += f"Vision feedback (Iteration {item.get('iteration','?')}): {item['vision_feedback']}\n\n"
-            prompt += f"Original user's request: {request}\n\n"
+            prompt += f"Original circuit description: {description}\n\n"
             prompt += REFINEMENT_PROMPT_TEMPLATE
-            logger.info(f"Refining ASC code based on feedback")
+            logger.info("Refining ASC code based on feedback")
             response = openai.ChatCompletion.create(
                 model=self.asc_gen_model,
                 messages=[{"role": "system", "content": ASC_SYSTEM_PROMPT},
@@ -150,27 +187,4 @@ class OpenAIProvider(LLMProvider):
         except Exception as e:
             logger.error(f"Error refining ASC code: {str(e)}")
             return "Error refining ASC code"
-    
-    def merge_requests(self, request_dict: dict) -> str:
-        """
-        Merge multiple circuit requests into one final request using the MERGING_PROMPT.
-        The request_dict should be of the form:
-        {"request1": "initial prompt", "request2": "follow-up", ...}
-        """
-        initial = request_dict['request1']
-        # Gather follow-ups in order
-        follow_ups = "\n".join(
-            request_dict[key] for key in sorted(request_dict.keys()) if key != "request1"
-        )
-        merging_prompt = MERGING_PROMPT.format(request1=initial, follow_ups=follow_ups)
-        self.logger.info("Merging requests using prompt: " + merging_prompt)
-        try:
-            response = openai.ChatCompletion.create(
-                model=self.merger_model,
-                messages=[{"role": "user", "content": merging_prompt}]
-            )
-            merged_response = response.choices[0].message.content.strip()
-            return merged_response
-        except Exception as e:
-            self.logger.error("Error merging requests: " + str(e))
-            return initial
+        

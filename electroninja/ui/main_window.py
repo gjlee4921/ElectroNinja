@@ -4,6 +4,7 @@ import asyncio
 import traceback
 import functools
 import concurrent.futures
+import os
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QApplication
 from PyQt5.QtCore import QTimer
 from electroninja.ui.components.top_bar import TopBar
@@ -19,7 +20,7 @@ from electroninja.backend.circuit_generator import CircuitGenerator
 from electroninja.backend.ltspice_manager import LTSpiceManager
 from electroninja.backend.vision_processor import VisionProcessor
 from electroninja.llm.vector_store import VectorStore
-from electroninja.backend.merging import RequestMerger
+from electroninja.backend.create_description import CreateDescription
 
 # Import our async pipeline worker
 from electroninja.ui.workers.pipeline_worker import run_pipeline
@@ -58,7 +59,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("ElectroNinja")
         self.resize(1200, 800)
         # Dictionary to store successive user requests in the current session
-        self.request_history = {}
+        self.user_requests = {}
         # Used to determine which prompt folder to use
         self.current_prompt_id = 1
         # Track all active asyncio tasks for proper cleanup
@@ -86,8 +87,11 @@ class MainWindow(QMainWindow):
         self.circuit_generator = CircuitGenerator(self.logging_provider, vector_store)
         self.ltspice_manager = LTSpiceManager()
         self.vision_processor = VisionProcessor()
-        self.merger = RequestMerger(self.logging_provider)
+        self.description_creator = CreateDescription(self.logging_provider)
         self.max_iterations = 3
+        
+        # Create output directory structure if it doesn't exist
+        os.makedirs(os.path.join("data", "output"), exist_ok=True)
 
     def initUI(self):
         """
@@ -158,13 +162,13 @@ class MainWindow(QMainWindow):
         self.right_panel.set_processing(True)
         
         # For a new session, clear previous code/image
-        if not self.request_history:
+        if not self.user_requests:
             self.left_panel.clear_code()
             self.middle_panel.clear_image()
 
         # Add the new message to the history
-        request_number = len(self.request_history) + 1
-        self.request_history[f"request{request_number}"] = message
+        request_number = len(self.user_requests) + 1
+        self.user_requests[f"request{request_number}"] = message
 
         # Start processing in a background task to keep UI responsive
         self.process_message_in_background(message, request_number)
@@ -192,29 +196,22 @@ class MainWindow(QMainWindow):
                     self.right_panel.set_processing(False)
                     return
 
-                # If this is the first request in the session, use it directly
-                if request_number == 1:
-                    merged_request = message
-                else:
-                    # Merge all requests using the merger to maintain context
-                    merged_request = await asyncio.get_event_loop().run_in_executor(
+                # Load previous description if this is not the first request
+                previous_description = None
+                if request_number > 1:
+                    previous_description = await asyncio.get_event_loop().run_in_executor(
                         self.executor,
-                        self.merger.merge_requests,
-                        self.request_history
+                        self.description_creator.load_description,
+                        self.current_prompt_id - 1
                     )
-                    # Log the merged request instead of showing it in the chat
-                    logger.info(f"Merged request: {merged_request}")
-                    
                     # Increment prompt session ID for follow-up modifications
                     self.current_prompt_id += 1
-                    # Reset history to contain only the merged request
-                    self.request_history = {"request1": merged_request}
-
+                
                 # Launch the pipeline for circuit processing
-                # For follow-up merged requests, skip evaluation since we've already merged
+                # For follow-up requests, skip evaluation since we've already evaluated
                 skip_eval = (request_number > 1)
                 await run_pipeline(
-                    user_message=merged_request,
+                    user_message=message,
                     evaluator=self.evaluator,
                     chat_generator=self.chat_generator,
                     circuit_generator=self.circuit_generator,
@@ -234,9 +231,12 @@ class MainWindow(QMainWindow):
                         "final_complete_chat_response": self.on_final_complete_chat_response,
                         "iteration_update": self.on_iteration_update,
                         "processing_finished": self.on_processing_finished,
+                        "description_generated": self.on_description_generated,
                     },
                     skip_evaluation=skip_eval,
-                    executor=self.executor  # Pass the executor to the pipeline
+                    executor=self.executor,  # Pass the executor to the pipeline
+                    description_creator=self.description_creator,
+                    previous_description=previous_description
                 )
             except asyncio.CancelledError:
                 # Task was cancelled, do any cleanup here
@@ -296,6 +296,10 @@ class MainWindow(QMainWindow):
     def on_iteration_update(self, iteration):
         """Callback: Iteration counter updated"""
         self.left_panel.set_iteration(iteration)
+
+    def on_description_generated(self, description):
+        """Callback: Circuit description generated"""
+        logger.info(f"Description generated: {description[:100]}...")
 
     def on_processing_finished(self):
         """Callback: All processing complete"""

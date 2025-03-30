@@ -13,10 +13,10 @@ from electroninja.backend.request_evaluator import RequestEvaluator
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
-def test_circuit_evaluation(prompt):
-    """Test circuit relevance evaluation with LLM I/O printed"""
+def test_circuit_evaluation(prompt, prompt_id=5):
+    """Test circuit relevance evaluation, saving components.txt, and loading it back."""
     print("\n====== TEST: CIRCUIT RELEVANCE EVALUATION ======")
-    print(f"Evaluating prompt: '{prompt}'")
+    print(f"Evaluating prompt: '{prompt}' with prompt ID: {prompt_id}")
     
     config = Config()
     llm_provider = OpenAIProvider(config)
@@ -39,13 +39,22 @@ def test_circuit_evaluation(prompt):
     openai.ChatCompletion.create = create_wrapper
 
     try:
-        is_circuit_related = request_evaluator.is_circuit_related(prompt)
+        # Use the new evaluate_request() which saves components.txt if result != 'N'
+        evaluation_result = request_evaluator.evaluate_request(prompt, prompt_id)
         print("\n=== EVALUATION RESULT ===")
-        print(f"Circuit-related: {'Yes' if is_circuit_related else 'No'}")
+        if evaluation_result.strip().upper() == 'N':
+            print("Circuit-related: No")
+        else:
+            print(f"Circuit-related components: {evaluation_result}")
+        
+        # Load and print the saved components.txt file content
+        saved_components = request_evaluator.load_components(prompt_id)
+        print("\n=== LOADED COMPONENTS FILE ===")
+        print(f"Saved components: {saved_components}")
     finally:
         openai.ChatCompletion.create = original_create
 
-    return is_circuit_related
+    return evaluation_result
 
 if __name__ == "__main__":
     prompts = [
@@ -55,4 +64,4 @@ if __name__ == "__main__":
     ]
     for prompt in prompts:
         print(f"\n*** TESTING PROMPT: '{prompt}' ***")
-        test_circuit_evaluation(prompt)
+        test_circuit_evaluation(prompt, prompt_id=5)

@@ -1,5 +1,4 @@
 import logging
-import json
 from typing import List, Dict, Any
 from electroninja.llm.providers.openai import OpenAIProvider
 from electroninja.llm.vector_store import VectorStore
@@ -21,17 +20,16 @@ class CircuitGenerator:
             asc_code = "Version 4\nSHEET 1 880 680\n" + asc_code
         return asc_code
 
-    def generate_asc_code(self, prompt: str) -> str:
-        self.logger.info(f"Generating ASC code for request: '{prompt}'")
+    def generate_asc_code(self, description: str) -> str:
+        self.logger.info(f"Generating ASC code for circuit description: '{description}'")
         
-        # Retrieve similar examples from the vector store
-        examples = self.vector_store.search(prompt)
+        # Retrieve similar examples from the vector store using the description
+        examples = self.vector_store.search(description)
         
-        # Print what's going in
+        # Print input details
         print(f"\n{'='*80}\nCIRCUIT GENERATOR PROMPT INPUT:\n{'='*80}")
-        print(f"User request: {prompt}")
+        print(f"Circuit description: {description}")
         print(f"Examples retrieved: {len(examples)}")
-        # Print a shorter version of examples to avoid flooding the terminal
         for i, example in enumerate(examples):
             print(f"Example {i+1} metadata: {example.get('metadata', {})}")
             asc_code = example.get('asc_code', '')
@@ -39,12 +37,12 @@ class CircuitGenerator:
                 print(f"Example {i+1} ASC code (first 50 chars): {asc_code[:50]}...")
         print('='*80)
 
-        # Use the provider to generate ASC code
-        asc_code = self.provider.generate_asc_code(prompt, examples)
+        # Generate ASC code using the provider with the description
+        asc_code = self.provider.generate_asc_code(description, examples)
         clean_asc = self.provider.extract_clean_asc_code(asc_code)
         final_asc = self._ensure_header(clean_asc)
         
-        # Print the output
+        # Print output details
         print(f"\n{'='*80}\nCIRCUIT GENERATOR OUTPUT:\n{'='*80}")
         print(f"Original output length: {len(asc_code)} chars")
         print(f"Clean ASC code length: {len(clean_asc)} chars")
@@ -54,35 +52,29 @@ class CircuitGenerator:
         self.logger.info("ASC code generated successfully")
         return final_asc
 
-    def refine_asc_code(self, original_request: str, history: List[Dict[str, Any]]) -> str:
-        self.logger.info(f"Refining ASC code for request: '{original_request}'")
+    def refine_asc_code(self, description: str, history: List[Dict[str, Any]]) -> str:
+        self.logger.info(f"Refining ASC code for circuit description: '{description}'")
         
-        # Print what's going in
         print(f"\n{'='*80}\nCIRCUIT REFINER PROMPT INPUT:\n{'='*80}")
-        print(f"Original request: {original_request}")
+        print(f"Circuit description: {description}")
         print(f"History entries: {len(history)}")
-        # Print a brief summary of the history
         for i, entry in enumerate(history):
             print(f"Entry {i}: iteration={entry.get('iteration')}")
-            
             feedback = entry.get('vision_feedback', '')
             if feedback:
                 if len(feedback) > 50:
                     print(f"  Feedback (first 50 chars): {feedback[:50]}...")
                 else:
                     print(f"  Feedback: {feedback}")
-            
             asc_code = entry.get('asc_code', '')
             if asc_code:
                 print(f"  ASC code length: {len(asc_code)} chars")
         print('='*80)
         
-        # Use the provider to refine ASC code
-        refined_asc = self.provider.refine_asc_code(original_request, history)
+        refined_asc = self.provider.refine_asc_code(description, history)
         clean_asc = self.provider.extract_clean_asc_code(refined_asc)
         final_asc = self._ensure_header(clean_asc)
         
-        # Print the output
         print(f"\n{'='*80}\nCIRCUIT REFINER OUTPUT:\n{'='*80}")
         print(f"Original output length: {len(refined_asc)} chars")
         print(f"Clean ASC code length: {len(clean_asc)} chars")
