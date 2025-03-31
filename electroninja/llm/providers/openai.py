@@ -88,10 +88,15 @@ class OpenAIProvider(LLMProvider):
             return asc_code[idx:].strip()
         return asc_code.strip()
 
-    def generate_asc_code(self, description: str, examples=None) -> str:
+    def generate_asc_code(self, description: str, examples=None, prompt_id: int = None) -> str:
+        """
+        Generates the ASC code for the given circuit description by building a composite prompt
+        that includes system instructions, various component instructions, examples, and the description.
+        """
         self.logger.info(f"Generating ASC code for circuit description: {description}")
-        system_prompt = f"{ASC_SYSTEM_PROMPT}"
-        user_prompt = self._build_prompt(description, examples)
+        system_prompt = ASC_SYSTEM_PROMPT  # This will be sent as the system message
+
+        user_prompt = self._build_prompt(description, examples, prompt_id)
         try:
             response = openai.ChatCompletion.create(
                 model=self.asc_gen_model,
@@ -109,31 +114,79 @@ class OpenAIProvider(LLMProvider):
             self.logger.error(f"Error generating ASC code: {str(e)}")
             return "Error: Failed to generate circuit"
 
-    def _build_prompt(self, description: str, examples=None) -> str:
-        if not examples or len(examples) == 0:
-            return f"Circuit description: {description}\n\n{RAG_ASC_GENERATION_PROMPT}"
-        examples_text = ""
-        for i, example in enumerate(examples, start=1):
-            desc = example.get("metadata", {}).get("description", "No description")
-            if "metadata" in example and "pure_asc_code" in example["metadata"]:
-                asc_code = example["metadata"]["pure_asc_code"]
-            else:
-                asc_code = example.get("asc_code", "")
-            asc_code = self.extract_clean_asc_code(asc_code)
-            examples_text += (
-                f"Example {i}:\n"
-                f"Description: {desc}\n"
-                f"ASC Code:\n"
-                f"-----------------\n"
-                f"{asc_code}\n"
-                f"-----------------\n\n"
-            )
-        return (
-            "Below are examples of circuits similar to the given description:\n\n"
-            f"{examples_text}"
-            f"Circuit description: {description}\n\n"
-            f"{RAG_ASC_GENERATION_PROMPT}"
-        )
+    def _load_instruction(self, filename: str) -> str:
+        """
+        Loads an instruction file from electroninja/llm/prompts/instructions/ directory.
+        """
+        instruct_path = os.path.join("electroninja", "llm", "prompts", "instructions", filename)
+        try:
+            with open(instruct_path, "r", encoding="utf-8") as f:
+                return f.read()
+        except Exception as e:
+            self.logger.error(f"Error loading {filename}: {str(e)}")
+            return ""
+
+    def _build_prompt(self, description: str, examples=None, prompt_id: int = None) -> str:
+        """
+        Builds the complete prompt for ASC generation.
+        
+        It includes:
+         1. General instructions and battery instructions.
+         2. Additional component instructions based on the components file.
+         3. Top examples from the vector DB.
+         4. The final circuit description.
+         5. A final task instruction.
+        """
+        prompt_parts = []
+
+        # 1. General instructions.
+        general_instruct = self._load_instruction("general_instruct.txt")
+        prompt_parts.append("=== GENERAL INSTRUCTIONS ===\n" + general_instruct + "\n")
+
+        # 2. Battery instructions.
+        battery_instruct = self._load_instruction("battery_instruct.txt")
+        prompt_parts.append("=== BATTERY INSTRUCTIONS ===\n" + battery_instruct + "\n")
+
+        # 3. Additional component instructions based on saved components.
+        if prompt_id is not None:
+            components_path = os.path.join("data", "output", f"prompt{prompt_id}", "components.txt")
+            if os.path.exists(components_path):
+                try:
+                    with open(components_path, "r", encoding="utf-8") as f:
+                        components_text = f.read().strip().upper()
+                    # For each component letter, add corresponding instructions.
+                    if "R" in components_text:
+                        resistor_instruct = self._load_instruction("resistor_instruct.txt")
+                        prompt_parts.append("=== RESISTOR INSTRUCTIONS ===\n" + resistor_instruct + "\n")
+                    if "C" in components_text:
+                        capacitor_instruct = self._load_instruction("capacitor_instruct.txt")
+                        prompt_parts.append("=== CAPACITOR INSTRUCTIONS ===\n" + capacitor_instruct + "\n")
+                    if "L" in components_text:
+                        inductor_instruct = self._load_instruction("inductor_instruct.txt")
+                        prompt_parts.append("=== INDUCTOR INSTRUCTIONS ===\n" + inductor_instruct + "\n")
+                    if "D" in components_text:
+                        diode_instruct = self._load_instruction("diode_instruct.txt")
+                        prompt_parts.append("=== DIODE INSTRUCTIONS ===\n" + diode_instruct + "\n")
+                except Exception as e:
+                    self.logger.error(f"Error reading components file: {str(e)}")
+
+        # 4. Include examples from the vector database, if any.
+        if examples and len(examples) > 0:
+            prompt_parts.append("=== EXAMPLES FROM SIMILAR CIRCUITS ===\n")
+            for i, example in enumerate(examples, start=1):
+                ex_desc = example.get("metadata", {}).get("description", "No description provided")
+                ex_asc = example.get("asc_code", "")
+                prompt_parts.append(f"Example {i}:\nDescription: {ex_desc}\nASC Code:\n{ex_asc}\n")
+            prompt_parts.append("\n")
+
+        # 5. Append the circuit description.
+        prompt_parts.append("=== CIRCUIT DESCRIPTION ===\n" + description + "\n")
+
+        # 6. Final task instruction.
+        prompt_parts.append("=== TASK ===\nBased on the above instructions, examples, and circuit description, generate the complete .asc code. Your output must contain only valid .asc code with no extra commentary.")
+
+        final_prompt = "\n".join(prompt_parts)
+        return final_prompt
     
     def generate_chat_response(self, prompt: str) -> str:
         try:

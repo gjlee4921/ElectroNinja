@@ -64,4 +64,4 @@ if __name__ == "__main__":
     ]
     for prompt in prompts:
         print(f"\n*** TESTING PROMPT: '{prompt}' ***")
-        test_circuit_evaluation(prompt, prompt_id=5)
+        test_circuit_evaluation(prompt, prompt_id=1)

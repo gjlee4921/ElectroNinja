@@ -16,11 +16,13 @@ from electroninja.backend.circuit_generator import CircuitGenerator
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
+prompt_id = 1  # Set the prompt ID for the test
+
 def test_asc_generation_from_description():
     print("\n====== TEST: ASC GENERATION FROM DESCRIPTION ======")
     
     # Path to the saved description file for prompt1
-    description_path = os.path.join("data", "output", "prompt1", "description.txt")
+    description_path = os.path.join("data", "output", f"prompt{prompt_id}", "description.txt")
     
     if not os.path.exists(description_path):
         print(f"Description file not found at: {description_path}")
@@ -59,7 +61,7 @@ def test_asc_generation_from_description():
 
     try:
         # Generate ASC code using the description loaded from file
-        asc_code = circuit_generator.generate_asc_code(description)
+        asc_code = circuit_generator.generate_asc_code(description, prompt_id)
         print("\n=== FINAL ASC CODE GENERATED FROM DESCRIPTION ===")
         print(asc_code)
     finally:

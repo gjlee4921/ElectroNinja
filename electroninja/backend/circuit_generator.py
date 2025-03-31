@@ -20,13 +20,17 @@ class CircuitGenerator:
             asc_code = "Version 4\nSHEET 1 880 680\n" + asc_code
         return asc_code
 
-    def generate_asc_code(self, description: str) -> str:
+    def generate_asc_code(self, description: str, prompt_id: int) -> str:
+        """
+        Generates ASC code by retrieving examples, building a comprehensive prompt (with instructions),
+        and then asking the provider to generate the code.
+        """
         self.logger.info(f"Generating ASC code for circuit description: '{description}'")
         
         # Retrieve similar examples from the vector store using the description
-        examples = self.vector_store.search(description)
+        examples = self.vector_store.search(description, top_k=3)
         
-        # Print input details
+        # Print input details (for debugging)
         print(f"\n{'='*80}\nCIRCUIT GENERATOR PROMPT INPUT:\n{'='*80}")
         print(f"Circuit description: {description}")
         print(f"Examples retrieved: {len(examples)}")
@@ -37,12 +41,12 @@ class CircuitGenerator:
                 print(f"Example {i+1} ASC code (first 50 chars): {asc_code[:50]}...")
         print('='*80)
 
-        # Generate ASC code using the provider with the description
-        asc_code = self.provider.generate_asc_code(description, examples)
+        # Generate ASC code using the provider, passing prompt_id to load components/instructions.
+        asc_code = self.provider.generate_asc_code(description, examples, prompt_id)
         clean_asc = self.provider.extract_clean_asc_code(asc_code)
         final_asc = self._ensure_header(clean_asc)
         
-        # Print output details
+        # Print output details (for debugging)
         print(f"\n{'='*80}\nCIRCUIT GENERATOR OUTPUT:\n{'='*80}")
         print(f"Original output length: {len(asc_code)} chars")
         print(f"Clean ASC code length: {len(clean_asc)} chars")
@@ -51,6 +55,9 @@ class CircuitGenerator:
         
         self.logger.info("ASC code generated successfully")
         return final_asc
+
+    # The refine_asc_code method remains unchanged.
+
 
     def refine_asc_code(self, description: str, history: List[Dict[str, Any]]) -> str:
         self.logger.info(f"Refining ASC code for circuit description: '{description}'")
