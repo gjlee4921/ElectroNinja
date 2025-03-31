@@ -5,9 +5,8 @@ from electroninja.config.settings import Config
 from electroninja.llm.providers.base import LLMProvider
 from electroninja.llm.prompts.circuit_prompts import (
     ASC_SYSTEM_PROMPT,
-    REFINEMENT_PROMPT_TEMPLATE,
+    ASC_REFINEMENT_PROMPT_TEMPLATE,
     CIRCUIT_RELEVANCE_EVALUATION_PROMPT,
-    RAG_ASC_GENERATION_PROMPT,
     DESCRIPTION_PROMPT
 )
 from electroninja.llm.prompts.chat_prompts import (
@@ -302,23 +301,17 @@ class OpenAIProvider(LLMProvider):
             str: The refined, corrected ASC code.
         """
         try:
-            prompt = "Below are previous attempts and feedback:\n\n"
-            for item in history:
-                if "asc_code" in item:
-                    prompt += f"Attempt {item.get('attempt', item.get('iteration', '?'))} ASC code:\n{item['asc_code']}\n\n"
-                if "vision_feedback" in item:
-                    prompt += f"Vision feedback (Iteration {item.get('iteration','?')}): {item['vision_feedback']}\n\n"
-            prompt += f"Original circuit description: {description}\n\n"
-            prompt += REFINEMENT_PROMPT_TEMPLATE
-            logger.info("Refining ASC code based on feedback")
+            refinement_prompt = self._build_refinement_prompt(prompt_id, iteration, vision_feedback)
+            self.logger.info("Refining ASC code based on feedback using new refinement prompt.")
             response = openai.ChatCompletion.create(
                 model=self.asc_gen_model,
-                messages=[{"role": "system", "content": ASC_SYSTEM_PROMPT},
-                          {"role": "user", "content": prompt}]
+                messages=[
+                    {"role": "system", "content": ASC_SYSTEM_PROMPT},
+                    {"role": "user", "content": refinement_prompt}
+                ]
             )
             refined_asc = response.choices[0].message.content.strip()
             return refined_asc
         except Exception as e:
-            logger.error(f"Error refining ASC code: {str(e)}")
+            self.logger.error(f"Error refining ASC code: {str(e)}")
             return "Error refining ASC code"
-        

@@ -75,21 +75,6 @@ RAG_ASC_GENERATION_PROMPT = (
     "... [remaining ASC code] ..."
 )
 
-# Enhanced refinement prompt template for improved circuit refinement
-REFINEMENT_PROMPT_TEMPLATE = (
-    "Based on the previous attempts and vision feedback, provide a revised complete .asc code "
-    "for a circuit that implements the original circuit description. "
-    
-    "CRITICAL REQUIREMENTS:\n"
-    "1. Pay careful attention to the specific issues identified in the vision feedback\n"
-    "2. Fix all component connections, values, or structural problems mentioned\n"
-    "3. Ensure your revised circuit properly implements the requested functionality\n"
-    "4. Apply proper electrical engineering principles in your refinement\n\n"
-    
-    "Your answer must begin with 'Version 4' and contain ONLY valid LTSpice ASC code with "
-    "no additional explanation, commentary, or text outside the ASC format."
-)
-
 # Vision image analysis prompt for OpenAI
 VISION_IMAGE_ANALYSIS_PROMPT = (
     "You are an expert electrical engineer responsible for verifying circuit implementations. "
