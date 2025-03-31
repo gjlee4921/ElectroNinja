@@ -27,23 +27,9 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
       6. In the refinement loop, generate refined ASC code using vision feedback,
          process it with LTSpice, and re-run vision analysis until requirements are met
          or max iterations are reached.
-      7. After the loop, generate a final response based on the vision outcome.
+      7. If we exit the loop without a correct circuit, optionally send a direct message
+         about maximum iterations reached.
       8. Finally, call the processing_finished callback.
-    
-    Args:
-      user_message (str): The user's circuit request.
-      evaluator: Instance of RequestEvaluator.
-      chat_generator: Instance of ChatResponseGenerator.
-      circuit_generator: Instance of CircuitGenerator.
-      ltspice_manager: Instance of LTSpiceManager.
-      vision_processor: Instance of VisionProcessor.
-      prompt_id (int): Current prompt/session identifier.
-      max_iterations (int): Maximum refinement iterations.
-      update_callbacks (dict): Callbacks for UI updates.
-      skip_evaluation (bool): Whether to skip the evaluation step.
-      executor: Executor for blocking calls.
-      description_creator: Instance of CreateDescription.
-      previous_description (str): Previous circuit description, if any.
     """
     pipeline_start = time.time()
 
@@ -61,6 +47,7 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
             if update_callbacks and "evaluation_done" in update_callbacks:
                 update_callbacks["evaluation_done"](eval_result)
             if eval_result.strip().upper() == 'N':
+                # Non-circuit request -> generate a polite refusal message
                 response = await run_in_thread(chat_generator.generate_response, user_message)
                 if update_callbacks and "non_circuit_response" in update_callbacks:
                     update_callbacks["non_circuit_response"](response)
@@ -85,17 +72,25 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
         logger.info(f"Using description: {description}")
 
         # Step 3: Generate initial chat response and ASC code concurrently.
-        chat_task = asyncio.create_task(run_in_thread(chat_generator.generate_response, user_message))
-        asc_task = asyncio.create_task(run_in_thread(circuit_generator.generate_asc_code, description, prompt_id))
+        chat_task = asyncio.create_task(
+            run_in_thread(chat_generator.generate_response, user_message)
+        )
+        asc_task = asyncio.create_task(
+            run_in_thread(circuit_generator.generate_asc_code, description, prompt_id)
+        )
+
         chat_response = await chat_task
         if update_callbacks and "initial_chat_response" in update_callbacks:
             update_callbacks["initial_chat_response"](chat_response)
+
         asc_code = await asc_task
         if update_callbacks and "asc_code_generated" in update_callbacks:
             update_callbacks["asc_code_generated"](asc_code)
 
         # Step 4: Process initial ASC code with LTSpice (iteration 0)
-        ltspice_result = await run_in_thread(ltspice_manager.process_circuit, asc_code, prompt_id, 0)
+        ltspice_result = await run_in_thread(
+            ltspice_manager.process_circuit, asc_code, prompt_id, 0
+        )
         if ltspice_result:
             asc_path, image_path = ltspice_result
             if update_callbacks and "ltspice_processed" in update_callbacks:
@@ -107,18 +102,21 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
             return
 
         # Step 5: Get vision feedback for iteration 0 using saved description.
-        vision_feedback = await run_in_thread(vision_processor.analyze_circuit_image, prompt_id, 0)
+        vision_feedback = await run_in_thread(
+            vision_processor.analyze_circuit_image, prompt_id, 0
+        )
         if update_callbacks and "vision_feedback" in update_callbacks:
             update_callbacks["vision_feedback"](vision_feedback)
+
         # Use the feedback callback for intermediate responses.
-        intermediate_response = await run_in_thread(chat_generator.generate_feedback_response, vision_feedback)
+        intermediate_response = await run_in_thread(
+            chat_generator.generate_feedback_response, vision_feedback
+        )
         if update_callbacks and "feedback_chat_response" in update_callbacks:
             update_callbacks["feedback_chat_response"](intermediate_response)
-        # If circuit verified, exit.
+
+        # If circuit verified, we’re done; no extra final message needed.
         if vision_feedback.strip().upper() == 'Y':
-            final_response = await run_in_thread(chat_generator.generate_response, "Your circuit is complete!")
-            if update_callbacks and "final_complete_chat_response" in update_callbacks:
-                update_callbacks["final_complete_chat_response"](final_response)
             return
 
         # Step 6: Iterative refinement loop.
@@ -126,10 +124,16 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
         while iteration < max_iterations:
             if update_callbacks and "iteration_update" in update_callbacks:
                 update_callbacks["iteration_update"](iteration)
-            refined_code = await run_in_thread(circuit_generator.refine_asc_code, prompt_id, iteration, vision_feedback)
+
+            refined_code = await run_in_thread(
+                circuit_generator.refine_asc_code, prompt_id, iteration, vision_feedback
+            )
             if update_callbacks and "asc_refined" in update_callbacks:
                 update_callbacks["asc_refined"](refined_code)
-            ltspice_result = await run_in_thread(ltspice_manager.process_circuit, refined_code, prompt_id, iteration)
+
+            ltspice_result = await run_in_thread(
+                ltspice_manager.process_circuit, refined_code, prompt_id, iteration
+            )
             if ltspice_result:
                 asc_path, image_path = ltspice_result
                 if update_callbacks and "ltspice_processed" in update_callbacks:
@@ -140,27 +144,33 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
                     update_callbacks["ltspice_processed"]((None, None, iteration))
                 break
 
-            vision_feedback = await run_in_thread(vision_processor.analyze_circuit_image, prompt_id, iteration)
+            vision_feedback = await run_in_thread(
+                vision_processor.analyze_circuit_image, prompt_id, iteration
+            )
             if update_callbacks and "vision_feedback" in update_callbacks:
                 update_callbacks["vision_feedback"](vision_feedback)
-            # Generate and send intermediate feedback response.
-            feedback_response = await run_in_thread(chat_generator.generate_feedback_response, vision_feedback)
+
+            feedback_response = await run_in_thread(
+                chat_generator.generate_feedback_response, vision_feedback
+            )
             if update_callbacks and "feedback_chat_response" in update_callbacks:
                 update_callbacks["feedback_chat_response"](feedback_response)
+
             if vision_feedback.strip().upper() == 'Y':
                 break
             iteration += 1
 
-        # Step 7: Finalize with a completion message.
-        if vision_feedback.strip().upper() == 'Y':
-            final_response = await run_in_thread(chat_generator.generate_response, "Your circuit is complete!")
-        else:
-            final_response = await run_in_thread(chat_generator.generate_response, "Maximum iterations reached. The circuit may need further manual adjustments.")
-        if update_callbacks and "final_complete_chat_response" in update_callbacks:
-            update_callbacks["final_complete_chat_response"](final_response)
+        # Step 7: If we got here, the circuit was never verified as correct,
+        # so we can optionally provide a direct final note if we want:
+        if vision_feedback.strip().upper() != 'Y':
+            # Provide a direct final note (or remove these lines if you want no message)
+            final_note = "Maximum iterations reached. The circuit may need further manual adjustments."
+            if update_callbacks and "final_complete_chat_response" in update_callbacks:
+                update_callbacks["final_complete_chat_response"](final_note)
 
         total_time = time.time() - pipeline_start
         logger.info(f"Pipeline completed after {iteration} iterations in {total_time:.2f} seconds")
+
     except asyncio.CancelledError:
         logger.info("Pipeline task cancelled")
         raise
