@@ -118,5 +118,6 @@ ASC_REFINEMENT_PROMPT_TEMPLATE = (
     "--- INSTRUCTION FILES ---\n"
     "{instruction_files}\n\n"
     "--- FINAL TASK ---\n"
+    "Make sure that you leave enough space between the components in your sketching so that they do not overlap or cross each other.\n"
     "Produce ONLY the corrected .asc code with no additional explanation."
 )

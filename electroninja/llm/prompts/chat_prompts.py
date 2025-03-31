@@ -18,6 +18,7 @@ VISION_FEEDBACK_PROMPT = (
     "{vision_feedback}\n\n"
     "Generate a brief, user-friendly response that:\n"
     "1. If the feedback is exactly 'Y', inform the user that their circuit is complete and they can ask for modifications if needed.\n"
+    "For example you could say: Amazing! Your circuit is complete. If you need any modifications, just let me know.\n"
     "2. If the feedback contains issues or errors, briefly summarize the main problems identified and assure the user you're working to fix them.\n"
     "In the 2nd case your answer should be of the tone: The current circuit I made has [issues from feedback] but I am working to fix them."
     "Keep your response conversational, concise (2-3 sentences), and non-technical. Do not include any circuit code in your response."
