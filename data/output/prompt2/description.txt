@@ -1,1 +1,0 @@
-A circuit with a 5V battery, a 10-ohm resistor in series, and a 100uF capacitor in parallel with the resistor.
