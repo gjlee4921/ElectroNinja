@@ -27,8 +27,7 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
       6. In the refinement loop, generate refined ASC code using vision feedback,
          process it with LTSpice, and re-run vision analysis until requirements are met
          or max iterations are reached.
-      7. If we exit the loop without a correct circuit, optionally send a direct message
-         about maximum iterations reached.
+      7. If we exit the loop without a correct circuit, optionally send a direct final note.
       8. Finally, call the processing_finished callback.
     """
     pipeline_start = time.time()
@@ -42,19 +41,31 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
 
     try:
         # Step 1: Evaluate if the request is circuit-related.
-        if not skip_evaluation:
-            eval_result = await run_in_thread(evaluator.is_circuit_related, user_message)
+        if skip_evaluation:
+            # For modification requests: evaluate the new request directly using the provider
+            # and then merge with the components from the previous prompt.
+            new_eval = await run_in_thread(evaluator.provider.evaluate_circuit_request, user_message)
+            # Merge the new evaluation result with the previous prompt's components.
+            eval_result = await run_in_thread(evaluator.merge_components, new_eval, prompt_id - 1, prompt_id)
             if update_callbacks and "evaluation_done" in update_callbacks:
                 update_callbacks["evaluation_done"](eval_result)
             if eval_result.strip().upper() == 'N':
-                # Non-circuit request -> generate a polite refusal message
+                # Non-circuit request: generate a polite refusal message.
                 response = await run_in_thread(chat_generator.generate_response, user_message)
                 if update_callbacks and "non_circuit_response" in update_callbacks:
                     update_callbacks["non_circuit_response"](response)
                 return
         else:
+            # For the initial request, use the standard evaluation method.
+            eval_result = await run_in_thread(evaluator.is_circuit_related, user_message)
             if update_callbacks and "evaluation_done" in update_callbacks:
-                update_callbacks["evaluation_done"](True)
+                update_callbacks["evaluation_done"](eval_result)
+            if eval_result.strip().upper() == 'N':
+                response = await run_in_thread(chat_generator.generate_response, user_message)
+                if update_callbacks and "non_circuit_response" in update_callbacks:
+                    update_callbacks["non_circuit_response"](response)
+                return
+
         
         # Step 2: Generate circuit description.
         if description_creator:
@@ -160,10 +171,9 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
                 break
             iteration += 1
 
-        # Step 7: If we got here, the circuit was never verified as correct,
-        # so we can optionally provide a direct final note if we want:
+        # Step 7: If we got here and the circuit was never verified as correct,
+        # optionally provide a direct final note.
         if vision_feedback.strip().upper() != 'Y':
-            # Provide a direct final note (or remove these lines if you want no message)
             final_note = "Maximum iterations reached. The circuit may need further manual adjustments."
             if update_callbacks and "final_complete_chat_response" in update_callbacks:
                 update_callbacks["final_complete_chat_response"](final_note)

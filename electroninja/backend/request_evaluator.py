@@ -92,3 +92,34 @@ class RequestEvaluator:
         except Exception as e:
             self.logger.error(f"Error loading components: {e}")
             return None
+
+    def merge_components(self, new_components: str, previous_prompt_id: int, current_prompt_id: int) -> str:
+        """
+        Merges the new evaluation result with the components from the previous prompt
+        by concatenating the previous components with the new ones.
+        If new_components is 'N', returns "N".
+        """
+        if new_components.strip().upper() == 'N':
+            self.logger.info("New evaluation result is 'N'; no components to merge.")
+            return "N"
+
+        # Load previous components from the previous prompt folder.
+        prev_components = self.load_components(previous_prompt_id)
+        
+        # Concatenate: if previous components exist, append new components.
+        if prev_components:
+            merged_components = prev_components.strip() + ", " + new_components.strip()
+        else:
+            merged_components = new_components.strip()
+
+        # Save the merged components into the current prompt folder.
+        output_dir = os.path.join("data", "output", f"prompt{current_prompt_id}")
+        os.makedirs(output_dir, exist_ok=True)
+        file_path = os.path.join(output_dir, "components.txt")
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(merged_components)
+            self.logger.info(f"Merged components saved to {file_path}")
+        except Exception as e:
+            self.logger.error(f"Error saving merged components: {e}")
+        return merged_components
