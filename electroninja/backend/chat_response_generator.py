@@ -18,8 +18,7 @@ class ChatResponseGenerator:
         
         # Delegates to the provider's method
         response = self.provider.generate_chat_response(prompt)
-        
-        print(f"\n{'='*80}\nCHAT RESPONSE OUTPUT:\n{'='*80}\n{response}\n{'='*80}")
+        self.logger.info(f"Chat response generated: {response}")
         return response
 
     def generate_feedback_response(self, vision_feedback: str) -> str:
