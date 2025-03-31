@@ -2,7 +2,8 @@
 
 import logging
 from PyQt5.QtWidgets import (
-    QFrame, QVBoxLayout, QLabel, QToolButton, QTextEdit, QHBoxLayout
+    QFrame, QVBoxLayout, QLabel, QTextEdit, QHBoxLayout,
+    QPushButton
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont, QTextCursor
@@ -18,13 +19,10 @@ class LeftPanel(QFrame):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.config = Config()
-        self.is_expanded = True
         self.animation_timer = None
         self.animation_text = ""
         self.animation_position = 0
         self.animation_speed = 5  # Characters per tick
-        self.current_iteration = 0
         self.initUI()
         
     def initUI(self):
@@ -47,36 +45,26 @@ class LeftPanel(QFrame):
         
         header_layout.addStretch()
         
-        # Toggle button
-        self.toggle_button = QToolButton(self)
-        self.toggle_button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.toggle_button.setArrowType(Qt.LeftArrow)
-        self.toggle_button.setText("Hide")
-        self.toggle_button.setCheckable(True)
-        self.toggle_button.setChecked(True)
-        self.toggle_button.clicked.connect(self.on_toggle_clicked)
-        header_layout.addWidget(self.toggle_button)
-        
         self.main_layout.addLayout(header_layout)
-        
-        # Iteration indicator
-        self.iteration_label = QLabel(self)
-        self.iteration_label.setStyleSheet("""
-            background-color: #4B2F4C; 
-            color: white; 
-            border-radius: 4px; 
-            padding: 2px 6px;
-            font-weight: bold;
-        """)
-        self.iteration_label.setAlignment(Qt.AlignCenter)
-        self.iteration_label.hide()
-        self.main_layout.addWidget(self.iteration_label)
         
         # Code editor
         self.code_editor = QTextEdit(self)
         self.code_editor.setPlaceholderText("Enter .asc code here...")
         self.code_editor.setFont(QFont("Consolas", 13))
         self.main_layout.addWidget(self.code_editor)
+        
+        # Add compile button
+        self.compile_button = QPushButton("Compile Code", self)
+        self.compile_button.setObjectName("compile_button")  # Set object name to match CSS selector in styles.py
+        
+        # Apply the same font styling as the ASC title label
+        font = self.asc_title.font()
+        self.compile_button.setFont(font)
+        
+        # Make text bold like the title
+        self.compile_button.setStyleSheet("font-weight: bold;")
+        
+        self.main_layout.addWidget(self.compile_button)
         
     def on_toggle_clicked(self):
         """Handle toggle button click"""
@@ -150,19 +138,3 @@ class LeftPanel(QFrame):
     def is_animating(self):
         """Check if animation is in progress"""
         return self.animation_timer is not None and self.animation_timer.isActive()
-    
-    def update_iteration_label(self, iteration_text):
-        """Update the iteration label with current iteration info"""
-        self.iteration_label.setText(iteration_text)
-        self.iteration_label.show()
-    
-    def set_iteration(self, iteration):
-        """Set the current iteration number and update display"""
-        self.current_iteration = iteration
-        
-        if iteration == 0:
-            label_text = "Initial Circuit"
-        else:
-            label_text = f"Iteration {iteration}"
-            
-        self.update_iteration_label(label_text)

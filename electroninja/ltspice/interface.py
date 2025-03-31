@@ -142,7 +142,7 @@ class LTSpiceInterface:
             time.sleep(0.001)
             
             # Step 2: Immediately send global Enter to accept default printer.
-            send_keys("{ENTER}", pause=0.0001)
+            send_keys("{ENTER}", pause=0.001)
             logger.info("Sent global Enter to accept default printer")
             time.sleep(0.001)
             
@@ -157,9 +157,9 @@ class LTSpiceInterface:
             time.sleep(0.001)
             
             # Step 4: Paste the PDF path.
-            save_dlg.type_keys("^a{BACKSPACE}", pause=0.0001)
+            save_dlg.type_keys("^a{BACKSPACE}", pause=0.001)
             time.sleep(0.001)
-            save_dlg.type_keys(pdf_path, pause=0.0001)
+            save_dlg.type_keys(pdf_path, pause=0.001)
             logger.info(f"Pasted PDF path: {pdf_path}")
             time.sleep(0.001)
             
