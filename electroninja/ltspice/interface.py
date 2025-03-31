@@ -44,7 +44,7 @@ class LTSpiceInterface:
         else:
             logger.info(f"LTSpice found at '{self.ltspice_path}'")
     
-    def process_circuit(self, asc_code_or_path, prompt_id=1, iteration=0):
+    def process_circuit(self, asc_code_or_path, prompt_id, iteration):
         """
         Process a circuit by:
           - Creating output folders.

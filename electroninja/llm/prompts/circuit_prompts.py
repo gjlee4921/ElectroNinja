@@ -119,3 +119,19 @@ VISION_IMAGE_ANALYSIS_PROMPT = (
     "engineering principles that apply, providing clear reasoning about the issues, and offering comprehensive "
     "guidance for correction."
 )
+
+# Enhanced refinement prompt template for correcting .asc files
+ASC_REFINEMENT_PROMPT_TEMPLATE = (
+    "You are a world-class electrical engineer specialized in fixing incorrect LTSpice .asc files.\n"
+    "Your task is to produce the correct .asc code based on the inputs provided below. Do not include any extra commentary.\n\n"
+    "--- ORIGINAL CIRCUIT DESCRIPTION ---\n"
+    "{original_description}\n\n"
+    "--- INCORRECT ASC CODE ---\n"
+    "{incorrect_asc}\n\n"
+    "--- VISION FEEDBACK ---\n"
+    "{vision_feedback}\n\n"
+    "--- INSTRUCTION FILES ---\n"
+    "{instruction_files}\n\n"
+    "--- FINAL TASK ---\n"
+    "Produce ONLY the corrected .asc code with no additional explanation."
+)
