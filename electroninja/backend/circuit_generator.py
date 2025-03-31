@@ -29,17 +29,6 @@ class CircuitGenerator:
         
         # Retrieve similar examples from the vector store using the description
         examples = self.vector_store.search(description, top_k=3)
-        
-        # Print input details (for debugging)
-        print(f"\n{'='*80}\nCIRCUIT GENERATOR PROMPT INPUT:\n{'='*80}")
-        print(f"Circuit description: {description}")
-        print(f"Examples retrieved: {len(examples)}")
-        for i, example in enumerate(examples):
-            print(f"Example {i+1} metadata: {example.get('metadata', {})}")
-            asc_code = example.get('asc_code', '')
-            if asc_code:
-                print(f"Example {i+1} ASC code (first 50 chars): {asc_code[:50]}...")
-        print('='*80)
 
         # Generate ASC code using the provider, passing prompt_id to load components/instructions.
         asc_code = self.provider.generate_asc_code(description, examples, prompt_id)

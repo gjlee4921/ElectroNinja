@@ -117,3 +117,5 @@ Make sure every single components have both nodes connected to the wire. Don't o
 The layout flows logically (inputs on one side, outputs on the other, and clear routing of ground nets).
 Use Placeholders if Needed:
 If you’re unsure of exact component values or positions, use placeholders or estimate positions based on your grid. You can always edit these later once you test the schematic in a simulation tool.
+
+IMPORTANT: Make sure that you make long wires and you leave a lot of space between components so that the circuit looks better and more understandable!
