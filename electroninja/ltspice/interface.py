@@ -127,7 +127,7 @@ class LTSpiceInterface:
         try:
             # Launch LTSpice.
             proc = subprocess.Popen([self.ltspice_path, asc_path], shell=False)
-            time.sleep(0.001)  # Wait for LTSpice to load
+            time.sleep(0.1)  # Wait for LTSpice to load
             
             # Connect to LTSpice.
             app = Application().connect(process=proc.pid)
@@ -137,7 +137,7 @@ class LTSpiceInterface:
             time.sleep(0.001)
             
             # Step 1: Press Ctrl+P.
-            main_window.type_keys("^p", pause=0.0001)
+            main_window.type_keys("^p", pause=0.001)
             logger.info("Sent Ctrl+P to open print dialog")
             time.sleep(0.001)
             

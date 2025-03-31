@@ -144,13 +144,14 @@ class OpenAIProvider(LLMProvider):
                     self.logger.error(f"Error reading components file: {str(e)}")
 
         # 4. Include examples from the vector database, if any.
-        # if examples and len(examples) > 0:
-        #     prompt_parts.append("=== EXAMPLES FROM SIMILAR CIRCUITS ===\n")
-        #     for i, example in enumerate(examples, start=1):
-        #         ex_desc = example.get("metadata", {}).get("description", "No description provided")
-        #         ex_asc = example.get("asc_code", "")
-        #         prompt_parts.append(f"Example {i}:\nDescription: {ex_desc}\nASC Code:\n{ex_asc}\n")
-        #     prompt_parts.append("\n")
+        if examples and len(examples) > 0:
+            prompt_parts.append("The following examples are for you to understand how certain circuits could be built. Don't copy them directly, just take inspiration from them.\n")
+            prompt_parts.append("=== EXAMPLES FROM SIMILAR CIRCUITS ===\n")
+            for i, example in enumerate(examples, start=1):
+                ex_desc = example.get("metadata", {}).get("description", "No description provided")
+                ex_asc = example.get("asc_code", "")
+                prompt_parts.append(f"Example {i}:\nDescription: {ex_desc}\nASC Code:\n{ex_asc}\n")
+            prompt_parts.append("\n")
 
         # 5. Append the circuit description.
         prompt_parts.append("=== CIRCUIT DESCRIPTION ===\n" + description + "\n")
