@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("ElectroNinja")
         self.resize(1200, 800)
         self.user_requests = {}
-        self.current_prompt_id = 1
+        self.current_prompt_id = 1  # Start with prompt 1
         self.active_tasks = set()
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, 
                                                              thread_name_prefix="electroninja_worker")
@@ -94,26 +94,16 @@ class MainWindow(QMainWindow):
     def process_message_in_background(self, message, request_number):
         async def background_task():
             try:
-                # Evaluate the request.
-                is_relevant = await asyncio.get_event_loop().run_in_executor(
-                    self.executor, self.evaluator.is_circuit_related, message)
-                if hasattr(self, "on_evaluation_done"):
-                    self.on_evaluation_done(is_relevant)
-                if is_relevant.strip().upper() == 'N':
-                    response = await asyncio.get_event_loop().run_in_executor(
-                        self.executor, self.chat_generator.generate_response, message)
-                    self.right_panel.receive_message(response)
-                    self.right_panel.set_processing(False)
-                    return
-
-                # For modification requests, load previous description and increment prompt ID.
+                # For modification requests (request_number > 1), load the previous description 
+                # from the last prompt folder (current_prompt_id - 1).
                 previous_description = None
                 if request_number > 1:
                     previous_description = await asyncio.get_event_loop().run_in_executor(
-                        self.executor, self.description_creator.load_description, self.current_prompt_id)
-                    self.current_prompt_id += 1
-
-                skip_eval = (request_number > 1)
+                        self.executor, self.description_creator.load_description, self.current_prompt_id - 1)
+                
+                # Use the current prompt ID for this pipeline.
+                current_id = self.current_prompt_id
+                
                 update_callbacks = {
                     "evaluation_done": self.on_evaluation_done,
                     "non_circuit_response": self.on_non_circuit_response,
@@ -135,14 +125,17 @@ class MainWindow(QMainWindow):
                     circuit_generator=self.circuit_generator,
                     ltspice_manager=self.ltspice_manager,
                     vision_processor=self.vision_processor,
-                    prompt_id=self.current_prompt_id,
+                    prompt_id=current_id,
                     max_iterations=self.max_iterations,
                     update_callbacks=update_callbacks,
-                    skip_evaluation=skip_eval,
+                    skip_evaluation=(request_number > 1),
                     executor=self.executor,
                     description_creator=self.description_creator,
                     previous_description=previous_description
                 )
+                
+                # After processing, increment the prompt ID so the next pipeline uses a new folder.
+                self.current_prompt_id += 1
             except asyncio.CancelledError:
                 self.right_panel.set_processing(False)
                 raise

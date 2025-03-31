@@ -1,1 +1,0 @@
-A circuit with a 5V battery and two resistors in parallel, 3 ohms and 4 ohms.

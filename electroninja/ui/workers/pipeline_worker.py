@@ -27,7 +27,8 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
       6. In the refinement loop, generate refined ASC code using vision feedback,
          process it with LTSpice, and re-run vision analysis until requirements are met
          or max iterations are reached.
-      7. Finally, call the processing_finished callback.
+      7. After the loop, generate a final response based on the vision outcome.
+      8. Finally, call the processing_finished callback.
     
     Args:
       user_message (str): The user's circuit request.
@@ -109,10 +110,15 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
         vision_feedback = await run_in_thread(vision_processor.analyze_circuit_image, prompt_id, 0)
         if update_callbacks and "vision_feedback" in update_callbacks:
             update_callbacks["vision_feedback"](vision_feedback)
-        complete_response = await run_in_thread(chat_generator.generate_feedback_response, vision_feedback)
-        if update_callbacks and "final_complete_chat_response" in update_callbacks:
-            update_callbacks["final_complete_chat_response"](complete_response)
+        # Use the feedback callback for intermediate responses.
+        intermediate_response = await run_in_thread(chat_generator.generate_feedback_response, vision_feedback)
+        if update_callbacks and "feedback_chat_response" in update_callbacks:
+            update_callbacks["feedback_chat_response"](intermediate_response)
+        # If circuit verified, exit.
         if vision_feedback.strip().upper() == 'Y':
+            final_response = await run_in_thread(chat_generator.generate_response, "Your circuit is complete!")
+            if update_callbacks and "final_complete_chat_response" in update_callbacks:
+                update_callbacks["final_complete_chat_response"](final_response)
             return
 
         # Step 6: Iterative refinement loop.
@@ -137,12 +143,21 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
             vision_feedback = await run_in_thread(vision_processor.analyze_circuit_image, prompt_id, iteration)
             if update_callbacks and "vision_feedback" in update_callbacks:
                 update_callbacks["vision_feedback"](vision_feedback)
-            complete_response = await run_in_thread(chat_generator.generate_feedback_response, vision_feedback)
-            if update_callbacks and "final_complete_chat_response" in update_callbacks:
-                update_callbacks["final_complete_chat_response"](complete_response)
+            # Generate and send intermediate feedback response.
+            feedback_response = await run_in_thread(chat_generator.generate_feedback_response, vision_feedback)
+            if update_callbacks and "feedback_chat_response" in update_callbacks:
+                update_callbacks["feedback_chat_response"](feedback_response)
             if vision_feedback.strip().upper() == 'Y':
                 break
             iteration += 1
+
+        # Step 7: Finalize with a completion message.
+        if vision_feedback.strip().upper() == 'Y':
+            final_response = await run_in_thread(chat_generator.generate_response, "Your circuit is complete!")
+        else:
+            final_response = await run_in_thread(chat_generator.generate_response, "Maximum iterations reached. The circuit may need further manual adjustments.")
+        if update_callbacks and "final_complete_chat_response" in update_callbacks:
+            update_callbacks["final_complete_chat_response"](final_response)
 
         total_time = time.time() - pipeline_start
         logger.info(f"Pipeline completed after {iteration} iterations in {total_time:.2f} seconds")
