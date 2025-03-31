@@ -17,26 +17,27 @@ class VisionAnalyzer:
         openai.api_key = self.config.OPENAI_API_KEY
         logger.info(f"Vision Analyzer initialized with OpenAI model: {self.model}")
         
-    def analyze_circuit_image(self, image_path, original_request):
+    def analyze_circuit_image(self, image_path, circuit_description):
         """
-        Analyze a circuit image to determine if it satisfies the user's request
+        Analyze a circuit image to determine if it satisfies the circuit description.
         
         Args:
-            image_path (str): Path to the circuit image
-            original_request (str): Original user request
+            image_path (str): Path to the circuit image.
+            circuit_description (str): The circuit description loaded from file.
             
         Returns:
-            str: Analysis result with 'Y' if verified, or detailed feedback
+            str: 'Y' if the circuit is verified, or detailed feedback if not.
         """
         try:
             logger.info(f"Starting analysis of circuit image: {image_path}")
-            logger.info(f"Original request: '{original_request}'")
+            logger.info(f"Circuit description for analysis: '{circuit_description[:50]}...'")
             
             if not os.path.exists(image_path):
                 error_msg = f"Image file not found: {image_path}"
                 logger.error(error_msg)
+                return f"Error: {error_msg}"
             
-            # Get file size for logging
+            # Log file size
             file_size = os.path.getsize(image_path)
             logger.info(f"Image file size: {file_size} bytes")
                 
@@ -45,12 +46,11 @@ class VisionAnalyzer:
                 image_data = base64.b64encode(image_file.read()).decode('utf-8')
                 logger.info(f"Successfully encoded image data (length: {len(image_data)})")
                 
-            # Use the OpenAI prompt template
-            prompt = VISION_IMAGE_ANALYSIS_PROMPT.format(original_request=original_request)
+            # Build the prompt using the circuit description
+            prompt = VISION_IMAGE_ANALYSIS_PROMPT.format(description=circuit_description)
+            logger.info("Sending prompt to OpenAI vision model...")
             
-            logger.info(f"Sending request to OpenAI vision model ({self.model})...")
-            
-            # Call OpenAI API
+            # Call OpenAI API with both text and the image data
             response = openai.ChatCompletion.create(
                 model=self.model,
                 messages=[
@@ -72,16 +72,13 @@ class VisionAnalyzer:
             
             # Extract and process analysis
             analysis = response.choices[0].message.content.strip()
-            
-            # No logging of raw output to avoid encoding issues
-            # Just log the status
-            is_verified = analysis.strip() == 'Y'
+            is_verified = analysis == 'Y'
             verification_status = "VERIFIED" if is_verified else "NOT VERIFIED"
             logger.info(f"Vision analysis complete: Circuit {verification_status}")
             
-            # Return the raw analysis
             return analysis
             
         except Exception as e:
             error_msg = f"Vision analysis error: {str(e)}"
             logger.error(error_msg)
+            return f"Error: {error_msg}"

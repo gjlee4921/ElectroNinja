@@ -12,11 +12,32 @@ from electroninja.backend.vision_processor import VisionProcessor
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
-def test_vision_analysis(image_path, original_request):
-    """Test vision analysis of circuit images with printed LLM I/O"""
+def test_vision_analysis(prompt_id, iteration):
+    """Test vision analysis of circuit images using prompt_id and iteration for description loading."""
+    # Build the image path based on prompt_id and iteration (for informational display)
+    image_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "data", "output", f"prompt{prompt_id}", f"output{iteration}", "image.png"
+    )
+    
     print("\n====== TEST: VISION ANALYSIS ======")
     print(f"Image path: {image_path}")
-    print(f"Original request: '{original_request}'")
+    print(f"Prompt ID: {prompt_id}, Iteration: {iteration}")
+    
+    # Load and print the full circuit description
+    description_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "data", "output", f"prompt{prompt_id}", "description.txt"
+    )
+    if os.path.exists(description_path):
+        with open(description_path, "r", encoding="utf-8") as f:
+            circuit_description = f.read().strip()
+        print("\n=== FULL CIRCUIT DESCRIPTION ===")
+        print(circuit_description)
+        print("=" * 80)
+    else:
+        print(f"Error: Circuit description file not found at {description_path}")
+        return
     
     if not os.path.exists(image_path):
         print(f"Error: Image not found at {image_path}")
@@ -51,7 +72,8 @@ def test_vision_analysis(image_path, original_request):
         print("Warning: Could not intercept OpenAI API calls")
     
     try:
-        analysis = vision_processor.analyze_circuit_image(image_path, original_request)
+        # Call the vision processor with prompt_id and iteration; it builds the image path internally.
+        analysis = vision_processor.analyze_circuit_image(prompt_id, iteration)
         print("\n=== VISION ANALYSIS RESULT ===")
         print(analysis)
         is_verified = vision_processor.is_circuit_verified(analysis)
@@ -65,13 +87,9 @@ def test_vision_analysis(image_path, original_request):
     return analysis
 
 if __name__ == "__main__":
-    default_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "data", "output", "prompt1", "output0", "image.png"
-    )
-    default_requests = [
-        "Create a circuit with 6 resistances in parallel and a battery 6V"
-    ]
-    for request in default_requests:
-        test_vision_analysis(default_path, request)
-        print("\n" + "-" * 60 + "\n")
+    # Set default variables for prompt_id and iteration
+    default_prompt_id = 1
+    iteration = 0  # Change this variable to test different iterations
+    # Run the test using the default prompt_id and iteration.
+    test_vision_analysis(default_prompt_id, iteration)
+    print("\n" + "-" * 60 + "\n")

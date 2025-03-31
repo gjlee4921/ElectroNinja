@@ -87,33 +87,7 @@ class OpenAIProvider(LLMProvider):
             idx = asc_code.find("Version 4")
             return asc_code[idx:].strip()
         return asc_code.strip()
-
-    def generate_asc_code(self, description: str, examples=None, prompt_id: int = None) -> str:
-        """
-        Generates the ASC code for the given circuit description by building a composite prompt
-        that includes system instructions, various component instructions, examples, and the description.
-        """
-        self.logger.info(f"Generating ASC code for circuit description: {description}")
-        system_prompt = ASC_SYSTEM_PROMPT  # This will be sent as the system message
-
-        user_prompt = self._build_prompt(description, examples, prompt_id)
-        try:
-            response = openai.ChatCompletion.create(
-                model=self.asc_gen_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-            )
-            asc_code = response.choices[0].message.content.strip()
-            if asc_code.upper() == "N":
-                return "N"
-            else:
-                return self.extract_clean_asc_code(asc_code)
-        except Exception as e:
-            self.logger.error(f"Error generating ASC code: {str(e)}")
-            return "Error: Failed to generate circuit"
-
+    
     def _load_instruction(self, filename: str) -> str:
         """
         Loads an instruction file from electroninja/llm/prompts/instructions/ directory.
@@ -187,6 +161,34 @@ class OpenAIProvider(LLMProvider):
 
         final_prompt = "\n".join(prompt_parts)
         return final_prompt
+
+    def generate_asc_code(self, description: str, examples=None, prompt_id: int = None) -> str:
+        """
+        Generates the ASC code for the given circuit description by building a composite prompt
+        that includes system instructions, various component instructions, examples, and the description.
+        """
+        self.logger.info(f"Generating ASC code for circuit description: {description}")
+        system_prompt = ASC_SYSTEM_PROMPT  # This will be sent as the system message
+
+        user_prompt = self._build_prompt(description, examples, prompt_id)
+        try:
+            response = openai.ChatCompletion.create(
+                model=self.asc_gen_model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+            )
+            asc_code = response.choices[0].message.content.strip()
+            if asc_code.upper() == "N":
+                return "N"
+            else:
+                return self.extract_clean_asc_code(asc_code)
+        except Exception as e:
+            self.logger.error(f"Error generating ASC code: {str(e)}")
+            return "Error: Failed to generate circuit"
+
+
     
     def generate_chat_response(self, prompt: str) -> str:
         try:
