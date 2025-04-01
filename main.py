@@ -1,6 +1,5 @@
 # main.py
 import sys
-import os
 import logging
 import asyncio
 from PyQt5.QtWidgets import QApplication

@@ -52,6 +52,8 @@ class MainWindow(QMainWindow):
         self.max_iterations = 3
         os.makedirs(os.path.join("data", "output"), exist_ok=True)
 
+    # In main_window.py, inside the MainWindow class
+
     def initUI(self):
         central_widget = QWidget()
         main_layout = QVBoxLayout(central_widget)
@@ -62,8 +64,12 @@ class MainWindow(QMainWindow):
         content_layout = QHBoxLayout()
         content_layout.setContentsMargins(10, 10, 10, 10)
         content_layout.setSpacing(10)
+        
+        # Initialize left panel and connect the compile button signal
         self.left_panel = LeftPanel(self)
+        self.left_panel.compile_button.clicked.connect(self.handle_compile_button)
         content_layout.addWidget(self.left_panel, 2)
+        
         self.middle_panel = MiddlePanel(self)
         content_layout.addWidget(self.middle_panel, 3)
         self.right_panel = RightPanel(self)
@@ -71,6 +77,47 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(content_layout)
         self.setCentralWidget(central_widget)
         self.right_panel.messageSent.connect(self.handle_user_message)
+
+    # New method to handle the compile button click
+    def handle_compile_button(self):
+        """
+        Triggered when the user clicks the compile button in the left panel.
+        It retrieves the code, processes it via LTSpice, and updates the UI.
+        """
+        self.right_panel.set_processing(True)
+        code = self.left_panel.get_code()
+        current_prompt = self.current_prompt_id  # use current prompt ID
+        self.create_tracked_task(self.compile_code_background(code, current_prompt))
+
+    # New asynchronous method that runs the compile process in the background
+    async def compile_code_background(self, code, prompt_id):
+        try:
+            # Call the LTSpiceManager's process_circuit function in a background thread.
+            # Here, iteration is fixed to 0 since it is a one-shot compile.
+            result = await asyncio.get_event_loop().run_in_executor(
+                self.executor,
+                self.ltspice_manager.process_circuit,
+                code,
+                prompt_id,
+                0  # iteration set to 0
+            )
+            if result:
+                asc_path, image_path = result
+                # Optionally update the code editor with the current code (or the processed ASC code)
+                self.left_panel.set_code(code, animated=False)
+                # Update the middle panel with the generated circuit image
+                self.middle_panel.set_circuit_image(image_path, 0)
+            else:
+                # If processing failed, show an error message in the chat area.
+                self.right_panel.receive_message("Compile failed. Please check your code or LTSpice configuration.")
+            # Increment the prompt ID so that the next prompt/compile uses a new folder.
+            self.current_prompt_id += 1
+            self.right_panel.set_processing(False)
+        except Exception as e:
+            logger.error(f"Error in compile_code_background: {e}")
+            self.right_panel.receive_message("An error occurred during compile.")
+            self.right_panel.set_processing(False)
+
 
     def create_tracked_task(self, coro):
         task = asyncio.create_task(coro)

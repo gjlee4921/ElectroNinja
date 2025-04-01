@@ -14,6 +14,10 @@ from electroninja.llm.prompts.chat_prompts import (
     VISION_FEEDBACK_PROMPT
 )
 
+from electroninja.llm.prompts.button_prompts import (
+    COMPILE_CODE_COMP_PROMPT
+)
+
 logger = logging.getLogger('electroninja')
 
 class OpenAIProvider(LLMProvider):
@@ -320,3 +324,26 @@ class OpenAIProvider(LLMProvider):
         except Exception as e:
             self.logger.error(f"Error refining ASC code: {str(e)}")
             return "Error refining ASC code"
+        
+    def list_components(self, asc_code: str) -> str:
+        """
+        Lists the components present in the given ASC code.
+        
+        Args:
+            asc_code (str): The ASC code to analyze.
+        
+        Returns:
+            str: A string listing the components found in the ASC code.
+        """
+        try:
+            prompt = COMPILE_CODE_COMP_PROMPT.format(asc_code=asc_code)
+            self.logger.info("Listing components from ASC code.")
+            response = openai.ChatCompletion.create(
+                model=self.merger_model,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            components = response.choices[0].message.content.strip()
+            return components
+        except Exception as e:
+            self.logger.error(f"Error listing components: {str(e)}")
+            return "Error listing components"

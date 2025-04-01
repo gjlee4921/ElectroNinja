@@ -123,3 +123,28 @@ class RequestEvaluator:
         except Exception as e:
             self.logger.error(f"Error saving merged components: {e}")
         return merged_components
+    
+    def list_components(self, prompt_id: int) -> str:
+        """
+        Lists the components based on the code in the file in data/output/prompt{prompt_id}/output0/code.asc
+        
+        Args:
+            prompt_id (int): The prompt/session identifier.
+        
+        Returns:
+            str: The components string, or None if the file does not exist.
+        """
+        asc_path = os.path.join("data", "output", f"prompt{prompt_id}", "output0", "code.asc")
+        if not os.path.exists(asc_path):
+            self.logger.info(f"ASC file not found: {asc_path}")
+            return None
+        
+        try:
+            with open(asc_path, "r", encoding="utf-8") as f:
+                asc_code = f.read()
+            components = self.provider.list_components(asc_code)
+            self.logger.info(f"Components extracted from {asc_path}: {components}")
+            return components
+        except Exception as e:
+            self.logger.error(f"Error extracting components from ASC: {e}")
+            return None

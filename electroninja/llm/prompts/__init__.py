@@ -13,6 +13,13 @@ from electroninja.llm.prompts.chat_prompts import (
     VISION_FEEDBACK_PROMPT
 )
 
+from electroninja.llm.prompts.button_prompts import (
+    COMPILE_CODE_DESC_PROMPT,
+    COMPILE_CODE_COMP_PROMPT
+)
+
+
+
 __all__ = [
     "ASC_SYSTEM_PROMPT",
     "ASC_GENERATION_PROMPT",
@@ -23,4 +30,6 @@ __all__ = [
     "DESCRIPTION_PROMPT",
     "CIRCUIT_CHAT_PROMPT",
     "VISION_FEEDBACK_PROMPT",
+    "COMPILE_CODE_DESC_PROMPT",
+    "COMPILE_CODE_COMP_PROMPT"
 ]

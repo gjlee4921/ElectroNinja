@@ -21,7 +21,7 @@ class Config:
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     ASC_MODEL = os.getenv("ASC_MODEL", "o3-mini")
     CHAT_MODEL = os.getenv("CHAT_MODEL", "gpt-4o-mini")
-    EVALUATOR_MODEL = os.getenv("EVALUATOR_MODEL", "gpt-4o-mini")
+    EVALUATION_MODEL = os.getenv("EVALUATION_MODEL", "gpt-4o-mini")
     DESCRIPTION_MODEL = os.getenv("DESCRIPTION_MODEL", "gpt-4o-mini")
     MERGER_MODEL = os.getenv("MERGER_MODEL", "gpt-4o-mini")
     COMPONENT_MODEL = os.getenv("COMPONENT_MODEL", "gpt-4o-mini")
@@ -34,11 +34,7 @@ class Config:
     def VISION_MODEL(self):
         """Returns the vision model name"""
         return self.OPENAI_VISION_MODEL
-    
-    EVALUATION_MODEL = os.getenv("EVALUATION_MODEL", "gpt-4o-mini")
-    
-    # Feedback loop configuration
-    MAX_ITERATIONS = int(os.getenv("MAX_ITERATIONS", "5"))
+
     
     # Vector DB configuration
     VECTOR_DB_DIR = os.path.join(BASE_DIR, "data", "vector_db")

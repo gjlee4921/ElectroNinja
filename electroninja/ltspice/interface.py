@@ -111,84 +111,6 @@ class LTSpiceInterface:
         logger.debug(f"Available window titles: {available_titles}")
         return None
     
-    def _run_ltspice_gui_and_print(self, asc_path, pdf_path):
-        """
-        Automate printing:
-          1. Open the ASC file in LTSpice.
-          2. Wait for LTSpice to load.
-          3. Press Ctrl+P to open the print dialog.
-          4. Immediately send a global Enter to accept default printer.
-          5. Wait for the Save Print Output As dialog, paste the PDF path, and press Enter.
-          6. Wait for the PDF to be generated.
-          7. Close LTSpice after PDF generation.
-        """
-        logger.info(f"Opening LTSpice GUI for {asc_path}")
-        proc = None
-        try:
-            # Launch LTSpice.
-            proc = subprocess.Popen([self.ltspice_path, asc_path], shell=False)
-            time.sleep(0.1)  # Wait for LTSpice to load
-            
-            # Connect to LTSpice.
-            app = Application().connect(process=proc.pid)
-            main_window = app.top_window()
-            main_window.set_focus()
-            logger.info("Connected to LTSpice and focused main window")
-            time.sleep(0.001)
-            
-            # Step 1: Press Ctrl+P.
-            main_window.type_keys("^p", pause=0.001)
-            logger.info("Sent Ctrl+P to open print dialog")
-            time.sleep(0.001)
-            
-            # Step 2: Immediately send global Enter to accept default printer.
-            send_keys("{ENTER}", pause=0.001)
-            logger.info("Sent global Enter to accept default printer")
-            time.sleep(0.001)
-            
-            # Step 3: Wait for the Save Print Output As dialog.
-            save_dlg = self._wait_for_window(app, r".*save print output as.*", timeout=10)
-            if not save_dlg:
-                logger.error("Save dialog not found")
-                self._close_ltspice()
-                return False
-            save_dlg.set_focus()
-            logger.info(f"Found save dialog: {save_dlg.window_text()}")
-            time.sleep(0.001)
-            
-            # Step 4: Paste the PDF path.
-            save_dlg.type_keys("^a{BACKSPACE}", pause=0.001)
-            time.sleep(0.001)
-            save_dlg.type_keys(pdf_path, pause=0.001)
-            logger.info(f"Pasted PDF path: {pdf_path}")
-            time.sleep(0.001)
-            
-            # Step 5: Press Enter to save PDF.
-            save_dlg.type_keys("{ENTER}", pause=0.0001)
-            logger.info("Pressed Enter to save PDF")
-            time.sleep(1.3)  # Wait 1.3 seconds for PDF generation THIS CANNON BE REDUCED I TRIED
-            
-            # Step 6: Now explicitly close LTSpice after PDF generation
-            self._close_ltspice(quiet=False)
-            logger.info("Closed LTSpice after PDF generation")
-            
-            # Ensure PDF exists before returning success
-            if os.path.exists(pdf_path):
-                return True
-            else:
-                logger.error("PDF file not created after waiting")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error automating LTSpice: {e}")
-            if proc:
-                try:
-                    proc.terminate()
-                except:
-                    pass
-            self._close_ltspice()
-            return False
-    
     def _wait_for_file_creation(self, file_path, max_wait=15, check_interval=0.2, min_size=10000):
         """
         Wait until the file exists and its size is stable and above a minimum threshold.
@@ -301,3 +223,81 @@ class LTSpiceInterface:
             asc_data = asc_code_or_path
         save_file(asc_data, asc_path)
         logger.info(f"Wrote ASC file: {asc_path}")
+
+    def _run_ltspice_gui_and_print(self, asc_path, pdf_path):
+        """
+        Automate printing:
+          1. Open the ASC file in LTSpice.
+          2. Wait for LTSpice to load.
+          3. Press Ctrl+P to open the print dialog.
+          4. Immediately send a global Enter to accept default printer.
+          5. Wait for the Save Print Output As dialog, paste the PDF path, and press Enter.
+          6. Wait for the PDF to be generated.
+          7. Close LTSpice after PDF generation.
+        """
+        logger.info(f"Opening LTSpice GUI for {asc_path}")
+        proc = None
+        try:
+            # Launch LTSpice.
+            proc = subprocess.Popen([self.ltspice_path, asc_path], shell=False)
+            time.sleep(0.1)  # Wait for LTSpice to load
+            
+            # Connect to LTSpice.
+            app = Application().connect(process=proc.pid)
+            main_window = app.top_window()
+            main_window.set_focus()
+            logger.info("Connected to LTSpice and focused main window")
+            time.sleep(0.001)
+            
+            # Step 1: Press Ctrl+P.
+            main_window.type_keys("^p", pause=0.001)
+            logger.info("Sent Ctrl+P to open print dialog")
+            time.sleep(0.001)
+            
+            # Step 2: Immediately send global Enter to accept default printer.
+            send_keys("{ENTER}", pause=0.001)
+            logger.info("Sent global Enter to accept default printer")
+            time.sleep(0.001)
+            
+            # Step 3: Wait for the Save Print Output As dialog.
+            save_dlg = self._wait_for_window(app, r".*save print output as.*", timeout=10)
+            if not save_dlg:
+                logger.error("Save dialog not found")
+                self._close_ltspice()
+                return False
+            save_dlg.set_focus()
+            logger.info(f"Found save dialog: {save_dlg.window_text()}")
+            time.sleep(0.001)
+            
+            # Step 4: Paste the PDF path.
+            save_dlg.type_keys("^a{BACKSPACE}", pause=0.001)
+            time.sleep(0.001)
+            save_dlg.type_keys(pdf_path, pause=0.001)
+            logger.info(f"Pasted PDF path: {pdf_path}")
+            time.sleep(0.001)
+            
+            # Step 5: Press Enter to save PDF.
+            save_dlg.type_keys("{ENTER}", pause=0.0001)
+            logger.info("Pressed Enter to save PDF")
+            time.sleep(1.3)  # Wait 1.3 seconds for PDF generation THIS CANNON BE REDUCED I TRIED
+            
+            # Step 6: Now explicitly close LTSpice after PDF generation
+            self._close_ltspice(quiet=False)
+            logger.info("Closed LTSpice after PDF generation")
+            
+            # Ensure PDF exists before returning success
+            if os.path.exists(pdf_path):
+                return True
+            else:
+                logger.error("PDF file not created after waiting")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error automating LTSpice: {e}")
+            if proc:
+                try:
+                    proc.terminate()
+                except:
+                    pass
+            self._close_ltspice()
+            return False

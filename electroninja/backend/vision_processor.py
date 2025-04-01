@@ -3,6 +3,9 @@ import logging
 import os
 from electroninja.config.settings import Config
 from electroninja.llm.vision_analyser import VisionAnalyzer
+from electroninja.llm.prompts.circuit_prompts import VISION_IMAGE_ANALYSIS_PROMPT
+from electroninja.llm.prompts.button_prompts import COMPILE_CODE_DESC_PROMPT
+
 
 logger = logging.getLogger('electroninja')
 
@@ -51,9 +54,12 @@ class VisionProcessor:
         else:
             print("Image exists: No")
         print('='*80)
+
+
+        prompt = VISION_IMAGE_ANALYSIS_PROMPT.format(description=circuit_description)
         
         # Analyze the image using the circuit description as context
-        analysis = self.vision_analyzer.analyze_circuit_image(image_path, circuit_description)
+        analysis = self.vision_analyzer.analyze_circuit_image(image_path, prompt=prompt)
         
         # Print and log the analysis result
         is_correct = analysis == 'Y'
@@ -67,3 +73,34 @@ class VisionProcessor:
 
     def is_circuit_verified(self, vision_feedback: str) -> bool:
         return vision_feedback.strip() == 'Y'
+    
+
+    def create_description_from_compile(self, prompt_id: int):
+        """
+        Creates a circuit description from the compiled circuit image.
+        
+        Args:
+            prompt_id (int): Identifier for the current prompt session.
+            
+        Returns:
+            str: The generated circuit description.
+        """
+        # Load the circuit image
+        image_path = os.path.join("data", "output", f"prompt{prompt_id}", "output0", "image.png")
+        if not os.path.exists(image_path):
+            error_msg = f"Image file not found: {image_path}"
+            self.logger.error(error_msg)
+            return f"Error: {error_msg}"
+        
+        prompt = COMPILE_CODE_DESC_PROMPT
+        
+        # Create a description using the vision model
+        description = self.vision_analyzer.produce_description_of_image(image_path, prompt)
+        
+        # Save the description to a file
+        description_path = os.path.join("data", "output", f"prompt{prompt_id}", "description.txt")
+        with open(description_path, "w", encoding="utf-8") as f:
+            f.write(description)
+        
+        self.logger.info(f"Created and saved circuit description from image: {description_path}")
+        return description

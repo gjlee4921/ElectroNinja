@@ -17,7 +17,7 @@ class VisionAnalyzer:
         openai.api_key = self.config.OPENAI_API_KEY
         logger.info(f"Vision Analyzer initialized with OpenAI model: {self.model}")
         
-    def analyze_circuit_image(self, image_path, circuit_description):
+    def analyze_circuit_image(self, image_path, prompt):
         """
         Analyze a circuit image to determine if it satisfies the circuit description.
         
@@ -30,7 +30,6 @@ class VisionAnalyzer:
         """
         try:
             logger.info(f"Starting analysis of circuit image: {image_path}")
-            logger.info(f"Circuit description for analysis: '{circuit_description[:50]}...'")
             
             if not os.path.exists(image_path):
                 error_msg = f"Image file not found: {image_path}"
@@ -46,8 +45,6 @@ class VisionAnalyzer:
                 image_data = base64.b64encode(image_file.read()).decode('utf-8')
                 logger.info(f"Successfully encoded image data (length: {len(image_data)})")
                 
-            # Build the prompt using the circuit description
-            prompt = VISION_IMAGE_ANALYSIS_PROMPT.format(description=circuit_description)
             logger.info("Sending prompt to OpenAI vision model...")
             
             # Call OpenAI API with both text and the image data
@@ -82,3 +79,66 @@ class VisionAnalyzer:
             error_msg = f"Vision analysis error: {str(e)}"
             logger.error(error_msg)
             return f"Error: {error_msg}"
+        
+    def produce_description_of_image(self, image_path, prompt):
+        """
+        Look at the circuit image and produce a description of it.
+        
+        Args:
+            image_path (str): Path to the circuit image.
+            prompt (str): The prompt to analyze the image and produce the description.
+            
+        Returns:
+            str: DESC=<the description of the image>'
+        """
+        try:
+            logger.info(f"Starting description of circuit image: {image_path}")
+            
+            if not os.path.exists(image_path):
+                error_msg = f"Image file not found: {image_path}"
+                logger.error(error_msg)
+                return f"Error: {error_msg}"
+            
+            # Log file size
+            file_size = os.path.getsize(image_path)
+            logger.info(f"Image file size: {file_size} bytes")
+                
+            # Encode image
+            with open(image_path, "rb") as image_file:
+                image_data = base64.b64encode(image_file.read()).decode('utf-8')
+                logger.info(f"Successfully encoded image data (length: {len(image_data)})")
+                
+            logger.info("Sending prompt to OpenAI vision model...")
+            
+            # Call OpenAI API with both text and the image data
+            response = openai.ChatCompletion.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{image_data}",
+                                    "detail": "high",
+                                }
+                            }
+                        ]
+                    }
+                ]
+            )
+            
+            # Extract and process analysis
+            output = response.choices[0].message.content.strip()
+
+            description = output.split('DESC=')[1].strip()
+            
+            return description
+            
+        except Exception as e:
+            error_msg = f"Vision analysis error: {str(e)}"
+            logger.error(error_msg)
+            return f"Error: {error_msg}"
+
