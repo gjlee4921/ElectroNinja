@@ -92,8 +92,7 @@ class MainWindow(QMainWindow):
     # New asynchronous method that runs the compile process in the background
     async def compile_code_background(self, code, prompt_id):
         try:
-            # Call the LTSpiceManager's process_circuit function in a background thread.
-            # Here, iteration is fixed to 0 since it is a one-shot compile.
+            # Process the ASC code using LTSpice (iteration 0)
             result = await asyncio.get_event_loop().run_in_executor(
                 self.executor,
                 self.ltspice_manager.process_circuit,
@@ -103,20 +102,43 @@ class MainWindow(QMainWindow):
             )
             if result:
                 asc_path, image_path = result
-                # Optionally update the code editor with the current code (or the processed ASC code)
+                # Update the left panel (code editor) and middle panel (circuit image)
                 self.left_panel.set_code(code, animated=False)
-                # Update the middle panel with the generated circuit image
                 self.middle_panel.set_circuit_image(image_path, 0)
+
+                # --- New: Create description from compiled image ---
+                # This function will read the image from data/output/prompt{prompt_id}/output0/image.png
+                # and create (or update) the description.txt file in data/output/prompt{prompt_id}/.
+                loop = asyncio.get_event_loop()
+                description_future = loop.run_in_executor(
+                    self.executor, self.vision_processor.create_description_from_compile, prompt_id
+                )
+
+                # --- New: Generate components file from the ASC code ---
+                # This function reads the asc code and creates components.txt in the output folder.
+                components_future = loop.run_in_executor(
+                    self.executor, self.evaluator.list_components, prompt_id
+                )
+
+                # Wait for both operations to complete concurrently.
+                description_result = await description_future
+                components_result = await components_future
+
+                # Optionally, you can log or update the UI with these results.
+                logger.info(f"Description created from compile: {description_result}")
+                logger.info(f"Components listed: {components_result}")
             else:
                 # If processing failed, show an error message in the chat area.
                 self.right_panel.receive_message("Compile failed. Please check your code or LTSpice configuration.")
-            # Increment the prompt ID so that the next prompt/compile uses a new folder.
+            
+            # Increment the prompt ID so that the next compile or prompt uses a new folder.
             self.current_prompt_id += 1
             self.right_panel.set_processing(False)
         except Exception as e:
             logger.error(f"Error in compile_code_background: {e}")
             self.right_panel.receive_message("An error occurred during compile.")
             self.right_panel.set_processing(False)
+
 
 
     def create_tracked_task(self, coro):

@@ -1,1 +1,0 @@
-A circuit with a 1V amplitude AC power source, a 100-ohm resistor (R1), a 0.01 H inductor (L1), and a 0.1 microfarad capacitor (C1), all in series.

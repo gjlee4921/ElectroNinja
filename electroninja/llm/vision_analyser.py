@@ -50,6 +50,7 @@ class VisionAnalyzer:
             # Call OpenAI API with both text and the image data
             response = openai.ChatCompletion.create(
                 model=self.model,
+                temperture=0.2,
                 messages=[
                     {
                         "role": "user",
@@ -83,37 +84,51 @@ class VisionAnalyzer:
     def produce_description_of_image(self, image_path, prompt):
         """
         Look at the circuit image and produce a description of it.
-        
+
         Args:
             image_path (str): Path to the circuit image.
             prompt (str): The prompt to analyze the image and produce the description.
-            
+
         Returns:
-            str: DESC=<the description of the image>'
+            str: DESC=<the description of the image>
         """
         try:
             logger.info(f"Starting description of circuit image: {image_path}")
-            
+
             if not os.path.exists(image_path):
                 error_msg = f"Image file not found: {image_path}"
                 logger.error(error_msg)
                 return f"Error: {error_msg}"
-            
+
             # Log file size
             file_size = os.path.getsize(image_path)
             logger.info(f"Image file size: {file_size} bytes")
-                
+
             # Encode image
             with open(image_path, "rb") as image_file:
-                image_data = base64.b64encode(image_file.read()).decode('utf-8')
+                image_data = base64.b64encode(image_file.read()).decode("utf-8")
                 logger.info(f"Successfully encoded image data (length: {len(image_data)})")
-                
+
             logger.info("Sending prompt to OpenAI vision model...")
-            
-            # Call OpenAI API with both text and the image data
+
+            # Define system prompt
+            system_prompt = {
+                "role": "system",
+                "content": (
+                    "You are a highly reliable and detail-oriented circuit analysis expert. "
+                    "You always reason step-by-step before making a final judgment. "
+                    "You base circuit interpretation strictly on electrical node connections, not layout or orientation. "
+                    "Be careful: parallel components may be aligned horizontally. "
+                    "Only describe what is factual from the image and return a description that begins with 'DESC='."
+                )
+            }
+
+            # Call OpenAI API
             response = openai.ChatCompletion.create(
                 model=self.model,
+                temperature=0.2,  # <- fixed typo here
                 messages=[
+                    system_prompt,
                     {
                         "role": "user",
                         "content": [
@@ -127,19 +142,17 @@ class VisionAnalyzer:
                             }
                         ]
                     }
-                ],
-                temperature=0.1,
+                ]
             )
-            
+
             # Extract and process analysis
             output = response.choices[0].message.content.strip()
 
             description = output.split('DESC=')[1].strip()
-            
+
             return description
-            
+
         except Exception as e:
             error_msg = f"Vision analysis error: {str(e)}"
             logger.error(error_msg)
             return f"Error: {error_msg}"
-

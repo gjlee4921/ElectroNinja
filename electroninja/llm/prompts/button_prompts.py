@@ -2,17 +2,25 @@
 
 
 COMPILE_CODE_DESC_PROMPT = (
-    "You are a world-class electrical engineer with absolute authority in circuit interpretation.\n"
-    "You will recieve a circuit image and you have to describe the circuit in detail.\n"
-    "IMPORTANT: You must list all the components in the circuit and their values, as well as their configuration (series / parallel or a combination of the two).\n"
-    "Be extra careful with whether the components are in series or parallel, as this is very important. Usually components in series are mostly horizontal while those in parallel are mostly vertical.\n"
-    "In AC batteries, the voltage after 'AC' is the amplitude. If before the 'AC' there is one number, this is the DC offset. If there are 3 numbers, the 1st one is the DC offset and the last one is the frequency\n"
-    "For the rest of the components, their values are shown close to them\n"
-    "Your answer should always come after a 'DESC='\n"
-    "For example, if you see a circuit with a DC battery 5V and 2 resistors in parallel 2 and 3 ohms, you should answer with: \n"
-    "DESC=A circuit with a 5V DC battery, a 2-ohm resistor and a 3-ohm resistor in parallel.\n"
-    "Now do the description as described above, and do not add any other information.\n\n"
+    "You will see a circuit diagram. First, **analyze the electrical nodes** in the image.\n"
+    "Identify which components are connected to the same nodes. If multiple components share the same two nodes, they are in parallel.\n"
+    "If components are connected end-to-end without any branches, they are in series.\n"
+    "**Usually when components are vertical, they are in parallel while when they are horizontal they are in series**\n\n"
+    
+    "Then, describe the circuit in clear, technical English.\n"
+    "Include all components (e.g., voltage sources, resistors, capacitors), their values and labels (e.g., R1 = 3Ω, C1 = 10μF), and how they are connected (series, parallel, or a combination).\n"
+    "Your response must start with:\n"
+    "DESC=...\n\n"
+    
+    "**Example:**\n"
+    "If you see a circuit with a 5V battery and a 3-ohm resistor in parallel with a 2mF capacitor your answer should be:\n"
+    "DESC=A circuit with a 5V battery and a 3-ohm resistor in parallel with a 2mF capacitor.\n\n"
+    
+    "No commentary, no assumptions, and no explanations — just the structured description."
 )
+
+
+
 
 COMPILE_CODE_COMP_PROMPT = (
     "You are a world-class electrical engineer with absolute authority in reviewing .asc code.\n"
@@ -60,7 +68,7 @@ COMPILE_CODE_COMP_PROMPT = (
     """
     "Your answer should be: 'R,C,L' (ONLY the letters)\n"
 
-    "Now list the components for the following code as described above, and do not add any other information.\n\n"
+    "Now list the components for the following code as described above, and do not add any other information:\n\n"
 
     "{asc_code}\n\n"
 

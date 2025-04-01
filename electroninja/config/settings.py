@@ -28,14 +28,7 @@ class Config:
     
     # Vision configuration
     OPENAI_VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-4o")
-    
-    # Standard model name accessor for backwards compatibility
-    @property
-    def VISION_MODEL(self):
-        """Returns the vision model name"""
-        return self.OPENAI_VISION_MODEL
 
-    
     # Vector DB configuration
     VECTOR_DB_DIR = os.path.join(BASE_DIR, "data", "vector_db")
     VECTOR_DB_INDEX = os.path.join(VECTOR_DB_DIR, "faiss_index.bin")
