@@ -79,7 +79,6 @@ class MainWindow(QMainWindow):
         self.right_panel.messageSent.connect(self.handle_user_message)
 
     # New method to handle the compile button click
-    # New method to handle the compile button click
     def handle_compile_button(self):
         """
         Triggered when the user clicks the compile button in the left panel.
@@ -139,9 +138,6 @@ class MainWindow(QMainWindow):
             # Re-enable the compile button, which now should appear in purple per the stylesheet.
             self.left_panel.compile_button.setEnabled(True)
 
-
-
-
     def create_tracked_task(self, coro):
         task = asyncio.create_task(coro)
         self.active_tasks.add(task)
@@ -157,7 +153,7 @@ class MainWindow(QMainWindow):
 
     def handle_user_message(self, message):
         self.right_panel.set_processing(True)
-        request_number = len(self.user_requests) + 1
+        request_number = self.current_prompt_id
         self.user_requests[f"request{request_number}"] = message
         self.process_message_in_background(message, request_number)
 
@@ -188,7 +184,8 @@ class MainWindow(QMainWindow):
                     "iteration_update": self.on_iteration_update,
                     "processing_finished": self.on_processing_finished
                 }
-                await run_pipeline(
+                # Run the pipeline and capture its result.
+                processed = await run_pipeline(
                     user_message=message,
                     evaluator=self.evaluator,
                     chat_generator=self.chat_generator,
@@ -198,14 +195,15 @@ class MainWindow(QMainWindow):
                     prompt_id=current_id,
                     max_iterations=self.max_iterations,
                     update_callbacks=update_callbacks,
-                    skip_evaluation=(request_number > 1),
+                    not_first_eval=(request_number > 1),
                     executor=self.executor,
                     description_creator=self.description_creator,
                     previous_description=previous_description
                 )
                 
-                # After processing, increment the prompt ID so the next pipeline uses a new folder.
-                self.current_prompt_id += 1
+                # Only increment prompt_id if the pipeline processed a circuit-related request.
+                if processed:
+                    self.current_prompt_id += 1
             except asyncio.CancelledError:
                 self.right_panel.set_processing(False)
                 raise
@@ -214,6 +212,7 @@ class MainWindow(QMainWindow):
                 traceback.print_exc()
                 self.right_panel.set_processing(False)
         self.create_tracked_task(background_task())
+
 
     # --- Callback Handlers ---
     def on_evaluation_done(self, result):
@@ -234,7 +233,6 @@ class MainWindow(QMainWindow):
     def on_ltspice_processed(self, result):
         if result and len(result) == 3:
             asc_path, image_path, iteration = result
-            self.left_panel.set_iteration(iteration)
             self.middle_panel.set_circuit_image(image_path, iteration)
 
     def on_vision_feedback(self, feedback):
@@ -248,9 +246,6 @@ class MainWindow(QMainWindow):
 
     def on_final_complete_chat_response(self, response):
         self.right_panel.receive_message_with_type(response, "complete")
-
-    def on_iteration_update(self, iteration):
-        self.left_panel.set_iteration(iteration)
 
     def on_processing_finished(self):
         self.right_panel.set_processing(False)
