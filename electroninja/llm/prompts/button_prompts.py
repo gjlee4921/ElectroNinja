@@ -5,6 +5,7 @@ COMPILE_CODE_DESC_PROMPT = (
     "You are a world-class electrical engineer with absolute authority in circuit interpretation.\n"
     "You will recieve a circuit image and you have to describe the circuit in detail.\n"
     "IMPORTANT: You must list all the components in the circuit and their values, as well as their configuration (series / parallel or a combination of the two).\n"
+    "Be extra careful with whether the components are in series or parallel, as this is very important. Usually components in series are mostly horizontal while those in parallel are mostly vertical.\n"
     "In AC batteries, the voltage after 'AC' is the amplitude. If before the 'AC' there is one number, this is the DC offset. If there are 3 numbers, the 1st one is the DC offset and the last one is the frequency\n"
     "For the rest of the components, their values are shown close to them\n"
     "Your answer should always come after a 'DESC='\n"

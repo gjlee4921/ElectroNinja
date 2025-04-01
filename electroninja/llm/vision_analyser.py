@@ -127,7 +127,8 @@ class VisionAnalyzer:
                             }
                         ]
                     }
-                ]
+                ],
+                temperature=0.1,
             )
             
             # Extract and process analysis
