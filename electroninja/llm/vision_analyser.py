@@ -50,7 +50,6 @@ class VisionAnalyzer:
             # Call OpenAI API with both text and the image data
             response = openai.ChatCompletion.create(
                 model=self.model,
-                temperture=0.2,
                 messages=[
                     {
                         "role": "user",
@@ -126,7 +125,6 @@ class VisionAnalyzer:
             # Call OpenAI API
             response = openai.ChatCompletion.create(
                 model=self.model,
-                temperature=0.2,  # <- fixed typo here
                 messages=[
                     system_prompt,
                     {

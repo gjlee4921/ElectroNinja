@@ -1,23 +1,21 @@
-# electroninja/ui/workers/pipeline_worker.py
 import asyncio
 import logging
 import time
 import functools
-import concurrent.futures
-import os
 import traceback
 
 logger = logging.getLogger('electroninja')
 
 async def run_pipeline(user_message, evaluator, chat_generator, circuit_generator,
                        ltspice_manager, vision_processor, prompt_id, max_iterations,
-                       update_callbacks=None, skip_evaluation=False, executor=None, 
+                       update_callbacks=None, not_first_eval=False, executor=None, 
                        description_creator=None, previous_description=None):
     """
     Asynchronous pipeline worker that implements the full circuit generation and refinement loop.
 
     Steps:
       1. Evaluate if the request is circuit-related.
+         - If the evaluation returns 'N', a non-circuit response is generated and the function returns False.
       2. Generate (or update) the circuit description and save it.
       3. Generate an initial chat response and ASC code concurrently.
       4. Process the initial ASC code with LTSpice (iteration 0) and display results.
@@ -27,8 +25,11 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
       6. In the refinement loop, generate refined ASC code using vision feedback,
          process it with LTSpice, and re-run vision analysis until requirements are met
          or max iterations are reached.
-      7. If we exit the loop without a correct circuit, optionally send a direct final note.
+      7. If we exit the loop without a correct circuit, optionally send a final note.
       8. Finally, call the processing_finished callback.
+      
+    Returns:
+       True if the request is circuit-related and processed; False if the evaluation returned 'N'.
     """
     pipeline_start = time.time()
 
@@ -41,20 +42,17 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
 
     try:
         # Step 1: Evaluate if the request is circuit-related.
-        if skip_evaluation:
-            # For modification requests: evaluate the new request directly using the provider
-            # and then merge with the components from the previous prompt.
+        if not_first_eval:
+            # For modification requests: evaluate and merge with previous components.
             new_eval = await run_in_thread(evaluator.provider.evaluate_circuit_request, user_message)
-            # Merge the new evaluation result with the previous prompt's components.
             eval_result = await run_in_thread(evaluator.merge_components, new_eval, prompt_id - 1, prompt_id)
             if update_callbacks and "evaluation_done" in update_callbacks:
                 update_callbacks["evaluation_done"](eval_result)
             if eval_result.strip().upper() == 'N':
-                # Non-circuit request: generate a polite refusal message.
                 response = await run_in_thread(chat_generator.generate_response, user_message)
                 if update_callbacks and "non_circuit_response" in update_callbacks:
                     update_callbacks["non_circuit_response"](response)
-                return
+                return False
         else:
             # For the initial request, use the standard evaluation method.
             eval_result = await run_in_thread(evaluator.is_circuit_related, user_message)
@@ -64,9 +62,8 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
                 response = await run_in_thread(chat_generator.generate_response, user_message)
                 if update_callbacks and "non_circuit_response" in update_callbacks:
                     update_callbacks["non_circuit_response"](response)
-                return
+                return False
 
-        
         # Step 2: Generate circuit description.
         if description_creator:
             desc = await run_in_thread(
@@ -110,7 +107,8 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
             logger.error("LTSpice processing failed at iteration 0")
             if update_callbacks and "ltspice_processed" in update_callbacks:
                 update_callbacks["ltspice_processed"]((None, None, 0))
-            return
+            # Even if LTSpice fails, the request was circuit-related.
+            return True
 
         # Step 5: Get vision feedback for iteration 0 using saved description.
         vision_feedback = await run_in_thread(
@@ -126,9 +124,9 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
         if update_callbacks and "feedback_chat_response" in update_callbacks:
             update_callbacks["feedback_chat_response"](intermediate_response)
 
-        # If circuit verified, we’re done; no extra final message needed.
+        # If circuit verified, we’re done.
         if vision_feedback.strip().upper() == 'Y':
-            return
+            return True
 
         # Step 6: Iterative refinement loop.
         iteration = 1
@@ -168,11 +166,11 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
                 update_callbacks["feedback_chat_response"](feedback_response)
 
             if vision_feedback.strip().upper() == 'Y':
-                break
+                return True
             iteration += 1
 
         # Step 7: If we got here and the circuit was never verified as correct,
-        # optionally provide a direct final note.
+        # optionally provide a final note.
         if vision_feedback.strip().upper() != 'Y':
             final_note = "Maximum iterations reached. The circuit may need further manual adjustments."
             if update_callbacks and "final_complete_chat_response" in update_callbacks:
@@ -180,6 +178,7 @@ async def run_pipeline(user_message, evaluator, chat_generator, circuit_generato
 
         total_time = time.time() - pipeline_start
         logger.info(f"Pipeline completed after {iteration} iterations in {total_time:.2f} seconds")
+        return True
 
     except asyncio.CancelledError:
         logger.info("Pipeline task cancelled")
