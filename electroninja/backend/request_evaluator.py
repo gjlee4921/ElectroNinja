@@ -139,11 +139,18 @@ class RequestEvaluator:
             self.logger.info(f"ASC file not found: {asc_path}")
             return None
         
+        output_dir = os.path.join("data", "output", f"prompt{prompt_id}")
+        os.makedirs(output_dir, exist_ok=True)
+        file_path = os.path.join(output_dir, "components.txt")
+        
         try:
             with open(asc_path, "r", encoding="utf-8") as f:
                 asc_code = f.read()
             components = self.provider.list_components(asc_code)
             self.logger.info(f"Components extracted from {asc_path}: {components}")
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(components)
+            self.logger.info(f"Components saved to {file_path}")
             return components
         except Exception as e:
             self.logger.error(f"Error extracting components from ASC: {e}")
