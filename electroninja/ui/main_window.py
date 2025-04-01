@@ -79,16 +79,19 @@ class MainWindow(QMainWindow):
         self.right_panel.messageSent.connect(self.handle_user_message)
 
     # New method to handle the compile button click
+    # New method to handle the compile button click
     def handle_compile_button(self):
         """
         Triggered when the user clicks the compile button in the left panel.
         It retrieves the code, processes it via LTSpice, and updates the UI.
         """
         self.right_panel.set_processing(True)
+        # Disable the compile button (it will show as gray thanks to the stylesheet)
+        self.left_panel.compile_button.setEnabled(False)
         code = self.left_panel.get_code()
         current_prompt = self.current_prompt_id  # use current prompt ID
         self.create_tracked_task(self.compile_code_background(code, current_prompt))
-
+    
     # New asynchronous method that runs the compile process in the background
     async def compile_code_background(self, code, prompt_id):
         try:
@@ -107,15 +110,12 @@ class MainWindow(QMainWindow):
                 self.middle_panel.set_circuit_image(image_path, 0)
 
                 # --- New: Create description from compiled image ---
-                # This function will read the image from data/output/prompt{prompt_id}/output0/image.png
-                # and create (or update) the description.txt file in data/output/prompt{prompt_id}/.
                 loop = asyncio.get_event_loop()
                 description_future = loop.run_in_executor(
                     self.executor, self.vision_processor.create_description_from_compile, prompt_id
                 )
 
                 # --- New: Generate components file from the ASC code ---
-                # This function reads the asc code and creates components.txt in the output folder.
                 components_future = loop.run_in_executor(
                     self.executor, self.evaluator.list_components, prompt_id
                 )
@@ -124,20 +124,21 @@ class MainWindow(QMainWindow):
                 description_result = await description_future
                 components_result = await components_future
 
-                # Optionally, you can log or update the UI with these results.
                 logger.info(f"Description created from compile: {description_result}")
                 logger.info(f"Components listed: {components_result}")
             else:
-                # If processing failed, show an error message in the chat area.
                 self.right_panel.receive_message("Compile failed. Please check your code or LTSpice configuration.")
             
             # Increment the prompt ID so that the next compile or prompt uses a new folder.
             self.current_prompt_id += 1
-            self.right_panel.set_processing(False)
         except Exception as e:
             logger.error(f"Error in compile_code_background: {e}")
             self.right_panel.receive_message("An error occurred during compile.")
+        finally:
             self.right_panel.set_processing(False)
+            # Re-enable the compile button, which now should appear in purple per the stylesheet.
+            self.left_panel.compile_button.setEnabled(True)
+
 
 
 

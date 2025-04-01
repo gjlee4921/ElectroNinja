@@ -16,24 +16,25 @@ COLORS = {
 }
 
 STYLE_SHEET = f"""
+/* Main Window and Dialog Backgrounds */
 QMainWindow, QDialog {{
     background-color: {COLORS['background']};
 }}
 
-/* Rounded, darker frames */
+/* Panels and Frames */
 QFrame {{
     background-color: {COLORS['panel_bg']};
     border-radius: 12px;
     border: 1px solid {COLORS['border']};
 }}
 
-/* Text labels */
+/* Labels */
 QLabel {{
     color: {COLORS['text_primary']};
     font-family: 'Segoe UI', sans-serif;
 }}
 
-/* Text editors (code/chat) */
+/* Multi-line Text Editors */
 QTextEdit {{
     background-color: {COLORS['input_bg']};
     color: {COLORS['text_primary']};
@@ -45,25 +46,23 @@ QTextEdit {{
     selection-background-color: {COLORS['accent_purple']}80; /* 50% opacity */
 }}
 
-/* Scrollbars for TextEdit */
+/* Scrollbar styling for QTextEdit */
 QTextEdit QScrollBar:vertical {{
     background-color: {COLORS['input_bg']};
     width: 12px;
     border-radius: 6px;
 }}
-
 QTextEdit QScrollBar::handle:vertical {{
     background-color: {COLORS['accent_purple']};
     border-radius: 6px;
     min-height: 20px;
 }}
-
-QTextEdit QScrollBar::add-line:vertical, 
+QTextEdit QScrollBar::add-line:vertical,
 QTextEdit QScrollBar::sub-line:vertical {{
     height: 0px;
 }}
 
-/* Single-line input */
+/* Single-line Text Input */
 QLineEdit {{
     background-color: {COLORS['input_bg']};
     color: {COLORS['text_primary']};
@@ -75,7 +74,7 @@ QLineEdit {{
     selection-background-color: {COLORS['accent_purple']}80;
 }}
 
-/* General buttons */
+/* General Button Styling */
 QPushButton {{
     background-color: {COLORS['button_bg']};
     color: {COLORS['text_primary']};
@@ -85,17 +84,18 @@ QPushButton {{
     font-family: 'Segoe UI', sans-serif;
     font-size: 16px;
 }}
-
-/* Hover effect with a light purple accent */
 QPushButton:hover {{
     background-color: {COLORS['button_hover']};
 }}
-
 QPushButton:pressed {{
     background-color: {COLORS['accent_purple']};
 }}
+QPushButton:disabled {{
+    background-color: gray;
+    color: {COLORS['text_secondary']};
+}}
 
-/* Tool buttons (toggle arrow) */
+/* Tool Buttons (e.g., toggle arrows) */
 QToolButton {{
     background-color: {COLORS['accent_purple']};
     color: {COLORS['text_primary']};
@@ -105,16 +105,14 @@ QToolButton {{
     font-family: 'Segoe UI', sans-serif;
     font-size: 16px;
 }}
-
 QToolButton:hover {{
     background-color: {COLORS['accent_purple_light']};
 }}
-
 QToolButton:pressed {{
     background-color: #7D3C98;
 }}
 
-/* Circuit title styling */
+/* Circuit Title Styling */
 #circuit_title {{
     font-family: 'Segoe UI', sans-serif;
     font-size: 40px;
@@ -122,7 +120,7 @@ QToolButton:pressed {{
     color: {COLORS['text_primary']};
 }}
 
-/* Panel titles */
+/* Panel Title Styling */
 .panel_title {{
     font-family: 'Segoe UI', sans-serif;
     font-size: 20px;
@@ -130,15 +128,12 @@ QToolButton:pressed {{
     color: {COLORS['text_primary']};
 }}
 
-/* Top bar styling */
+/* Top Bar Styling */
 #top_bar {{
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, 
-                               stop:0 #8E44AD, stop:1 #9B59B6);
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #8E44AD, stop:1 #9B59B6);
     border-radius: 12px;
     padding: 5px;
 }}
-
-/* Top bar title */
 #app_title {{
     font-family: 'Segoe UI', sans-serif;
     font-size: 32px;
@@ -147,31 +142,27 @@ QToolButton:pressed {{
     padding: 5px;
 }}
 
-/* Button styling - using consistent colors */
+/* Specific Button Stylings */
 #compile_button {{
     background-color: {COLORS['button_bg']};
 }}
-
 #compile_button:hover {{
     background-color: {COLORS['button_hover']};
 }}
-
 #edit_button {{
     background-color: {COLORS['button_bg']};
     font-size: 18px;
     padding: 10px 20px;
 }}
-
 #edit_button:hover {{
     background-color: {COLORS['button_hover']};
 }}
-
 #send_button {{
     background-color: {COLORS['accent_purple']};
     border-radius: 8px;
 }}
 
-/* Placeholder for circuit display */
+/* Circuit Display Placeholder */
 #circuit_display {{
     background-color: {COLORS['input_bg']};
     color: {COLORS['text_secondary']};
@@ -182,7 +173,7 @@ QToolButton:pressed {{
 """
 
 def setup_fonts(app):
-    """Setup custom fonts if needed"""
+    """Setup custom fonts if needed."""
     from PyQt5.QtGui import QFontDatabase
-    # Add local font files here if desired
+    # Add local font files here if desired.
     pass
