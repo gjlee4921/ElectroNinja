@@ -1,4 +1,4 @@
-# ElectroNinja: A cursor for electical engineers
+# ElectroNinja: A cursor for electrical engineers
 
 ElectroNinja is an advanced AI-powered application that functions as an electrical engineer. It interprets user requests, generates circuit descriptions, creates LTSpice ASC code, and iteratively refines circuit designs using a combination of GPT-based language models, a vision analysis module, and LTSpice simulation.
 
@@ -70,3 +70,22 @@ To run ElectroNinja, follow these steps:
    In the `electroninja/config/settings.py` file, update the `LTSPICE_PATH` variable with the full path to your `LTspice.exe` file. For example:
    ```python
    LTSPICE_PATH = r"C:\Path\To\LTspice\LTspice.exe"
+   ```
+
+3. **Set Up OpenAI API Key**  
+   Create a `.env` file in the base directory of the project and add your OpenAI API key:
+   ```ini
+   OPENAI_API_KEY="your_openai_api_key_here"
+   ```
+
+4. **Install Dependencies**  
+   Install all required dependencies by running:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+5. **Run the Application**  
+   Start the application by running the `main.py` file:
+   ```bash
+   python main.py
+   ```
