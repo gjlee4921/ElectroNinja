@@ -24,6 +24,7 @@ class Config:
     EVALUATOR_MODEL = os.getenv("EVALUATOR_MODEL", "gpt-4o-mini")
     DESCRIPTION_MODEL = os.getenv("DESCRIPTION_MODEL", "gpt-4o-mini")
     MERGER_MODEL = os.getenv("MERGER_MODEL", "gpt-4o-mini")
+    COMPONENT_MODEL = os.getenv("COMPONENT_MODEL", "gpt-4o-mini")
     
     # Vision configuration
     OPENAI_VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-4o")
