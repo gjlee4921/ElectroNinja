@@ -2,17 +2,17 @@
 
 # Define color palette - dark theme with purple accent
 COLORS = {
-    'background': '#1E1E1E',      # Main background
-    'panel_bg': '#2F2F2F',        # Panel background
-    'chat_bg': '#252526',         # Chat background (dark instead of white)
-    'text_primary': '#FFFFFF',    # Primary text color
-    'text_secondary': '#B0B0B0',  # Secondary text color
-    'accent_purple': '#4B2F4C',   # Dark purple accent
-    'accent_purple_light': '#5F3D61', # Light purple for hover states
-    'border': '#3C3C3C',          # Border color
-    'input_bg': '#2B2B2B',        # Input background
-    'button_bg': '#4B2F4C',       # Button background (now purple)
-    'button_hover': '#5F3D61'     # Button hover (lighter purple)
+    'background': '#1E1E1E',           # Main background
+    'panel_bg': '#2F2F2F',             # Panel background
+    'chat_bg': '#252526',              # Chat background (dark instead of white)
+    'text_primary': '#FFFFFF',         # Primary text color
+    'text_secondary': '#B0B0B0',       # Secondary text color
+    'accent_purple': '#4B2F4C',        # Dark purple accent
+    'accent_purple_light': '#5F3D61',  # Light purple for hover states
+    'border': '#3C3C3C',               # Border color
+    'input_bg': '#2B2B2B',             # Input background
+    'button_bg': '#4B2F4C',            # Button background (now purple)
+    'button_hover': '#5F3D61'          # Button hover (lighter purple)
 }
 
 STYLE_SHEET = f"""
