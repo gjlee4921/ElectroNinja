@@ -148,11 +148,11 @@ class MainWindow(QMainWindow):
             )
         prompt = (
             f"{general}\n\n"
-            "You also will be provided with three example ASC files that are relevant to the user's query." 
-            "However, only use these as a reference to understand the syntax for necessary components and their connections, DO NOT try to copy their coordinate system."
-            "Also, carefully examine how multiple wires are used in the example circuits to create corners when connecting two nodes to increase spacing, instead of connecting a node with a single straight wire and making the whole circuit tight."
-            "Come up with your own coordinates and connections using the instructions above, keeping in mind the location of the reference node and the offset translations.\n"
-            "Below are three examples of circuits similar to the user's request:\n\n"
+                "You also will be provided with three example ASC files that are relevant to the user's query." 
+                "However, only use these as a reference to understand the syntax for necessary components and their connections, DO NOT try to copy their coordinate system."
+                "Also, carefully examine how multiple wires are used in the example circuits to create corners when connecting two nodes to increase spacing, instead of connecting a node with a single straight wire and making the whole circuit tight."
+                "Come up with your own coordinates and connections using the instructions above, keeping in mind the location of the reference node and the offset translations.\n"
+                "Below are three examples of circuits similar to the user's request:\n\n"
             f"{examples_text}"
             f"User's request: {user_request}\n\n"
             "Now, based on the examples above, generate the complete .asc code for a circuit that meets the user's request.\n"
