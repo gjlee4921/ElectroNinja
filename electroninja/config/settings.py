@@ -15,7 +15,7 @@ class Config:
     
     # LTSpice configuration
     LTSPICE_PATH = os.getenv("LTSPICE_PATH", 
-                             r"C:\Users\vleou\AppData\Local\Programs\ADI\LTspice\LTspice.exe")
+                             r"C:\Users\leegj\AppData\Local\Programs\ADI\LTspice\LTspice.exe")
     
     # LLM configuration
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

@@ -5,9 +5,13 @@ import concurrent.futures
 import os
 import traceback
 import functools
+import shutil
+from pathlib import Path
 
 from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QApplication
 from PyQt5.QtCore import QTimer
+
+from electroninja.config.settings import Config
 
 from electroninja.ui.components.top_bar import TopBar
 from electroninja.ui.panels.left_panel import LeftPanel
@@ -34,6 +38,13 @@ class MainWindow(QMainWindow):
         self.resize(1200, 800)
         self.user_requests = {}
         self.current_prompt_id = 1  # Start with prompt 1
+        self.config = Config()
+        self.ltspice_path = self.config.LTSPICE_PATH
+        self.output_dir = self.config.OUTPUT_DIR
+        if not os.path.exists(self.ltspice_path):
+            logger.warning(f"LTSpice executable not found at '{self.ltspice_path}'")
+        else:
+            logger.info(f"LTSpice found at '{self.ltspice_path}'")
         self.active_tasks = set()
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, 
                                                              thread_name_prefix="electroninja_worker")
@@ -50,7 +61,46 @@ class MainWindow(QMainWindow):
         self.vision_processor = VisionProcessor()
         self.description_creator = CreateDescription(self.openai_provider)
         self.max_iterations = 3
+        self.clear_output_directory(self.output_dir)
         os.makedirs(os.path.join("data", "output"), exist_ok=True)
+
+    def clear_output_directory(self, directory: str):
+        """
+        Removes the read-only attribute from all files in the directory (including subdirectories),
+        then deletes all files and directories in the specified directory.
+        """
+        for root, dirs, files in os.walk(directory, topdown=False):
+            # Remove read-only attribute and delete files
+            for file in files:
+                file_path = os.path.join(root, file)
+                try:
+                    # Remove read-only attribute for Windows
+                    os.system(f'attrib -r "{file_path}"')
+                    
+                    # Make the file writable for other systems (like Linux)
+                    os.chmod(file_path, 0o777)  # Remove read-only on Linux/Mac
+                    
+                    # Delete the file
+                    os.remove(file_path)
+                except Exception as e:
+                    print(f"Error while removing file {file_path}: {e}")
+
+            # Remove read-only attribute and delete directories
+            for dir in dirs:
+                dir_path = os.path.join(root, dir)
+                try:
+                    # Remove read-only attribute for Windows
+                    os.system(f'attrib -r "{dir_path}"')
+                    
+                    # Make the directory writable for other systems (like Linux)
+                    os.chmod(dir_path, 0o777)  # Remove read-only on Linux/Mac
+                    
+                    # Delete the directory
+                    shutil.rmtree(dir_path)
+                except Exception as e:
+                    print(f"Error while removing directory {dir_path}: {e}")
+
+            print("Cleared output directory")
 
     # In main_window.py, inside the MainWindow class
 
@@ -71,6 +121,7 @@ class MainWindow(QMainWindow):
         content_layout.addWidget(self.left_panel, 2)
         
         self.middle_panel = MiddlePanel(self)
+        self.middle_panel.edit_button.clicked.connect(self.handle_edit_button)
         content_layout.addWidget(self.middle_panel, 3)
         self.right_panel = RightPanel(self)
         content_layout.addWidget(self.right_panel, 2)
@@ -90,6 +141,72 @@ class MainWindow(QMainWindow):
         code = self.left_panel.get_code()
         current_prompt = self.current_prompt_id  # use current prompt ID
         self.create_tracked_task(self.compile_code_background(code, current_prompt))
+
+    def handle_edit_button(self):
+        """
+        Manually open the circuit from the main window's left panel in LTSpice
+        and then show the resulting image in the middle panel.
+        """
+        import os
+        import time
+        import pygetwindow as gw
+        import pyautogui
+        import subprocess
+        from PyQt5.QtWidgets import QMessageBox
+
+        # The real left panel is in the main window
+        main_window = self.window()
+        left_panel = main_window.left_panel
+        ltspice_path = self.ltspice_path
+
+        circuit_text = left_panel.code_editor.toPlainText().strip()
+        if not circuit_text:
+            QMessageBox.warning(self, "Error", "No circuit code entered!")
+            return
+
+        # Save the .asc file as a temporary file
+        temp_file_path = os.path.join(os.getcwd(), "ltspice_edit.asc")
+        with open(temp_file_path, "w") as f:
+            f.write(circuit_text)
+
+        print(f"🔹 Temporary LTSpice file saved at: {temp_file_path}")
+
+        # Try opening LTSpice
+        try:
+            ltspice_process = subprocess.Popen([ltspice_path, temp_file_path])
+        except FileNotFoundError:
+            QMessageBox.critical(self, "LTSpice Error", "LTSpice executable not found!")
+            return
+
+        print("🔹 LTSpice opened. Monitoring for exit...")
+
+        # Monitor for "Save changes?" pop-up
+        time.sleep(4)
+        initial_len = len(gw.getWindowsWithTitle("LTspice"))
+        while ltspice_process.poll() is None:
+            time.sleep(0.5)
+            windows = gw.getWindowsWithTitle("LTspice")
+            if len(windows) > initial_len:
+                print("Detected LTSpice save pop-up. Pressing 'Cancel'...")
+                time.sleep(0.5)
+                pyautogui.press("esc")
+                time.sleep(0.1)
+                pyautogui.hotkey('ctrl', 's')
+                break
+        
+        with open(temp_file_path, "r") as f:
+            asc_code = f.read()
+
+        self.right_panel.set_processing(True)
+        current_prompt = self.current_prompt_id  # use current prompt ID
+        self.create_tracked_task(self.compile_code_background(asc_code, current_prompt))
+
+        # Clean up
+        try:
+            os.remove(temp_file_path)
+        except Exception as e:
+            print(f"Error deleting temporary file: {e}")
+
     
     # New asynchronous method that runs the compile process in the background
     async def compile_code_background(self, code, prompt_id):
@@ -217,6 +334,9 @@ class MainWindow(QMainWindow):
     # --- Callback Handlers ---
     def on_evaluation_done(self, result):
         logger.info(f"Evaluation done: {result}")
+
+    def on_iteration_update(self):
+        pass
 
     def on_non_circuit_response(self, response):
         self.right_panel.receive_message(response)

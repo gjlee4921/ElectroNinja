@@ -2,6 +2,8 @@
 import sys
 import logging
 import asyncio
+import shutil
+from pathlib import Path
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtGui import QFont
 import ctypes
@@ -43,6 +45,7 @@ def main():
     
     logger.info("ElectroNinja UI initialized and ready")
     return app, window
+
 
 if __name__ == "__main__":
     # Keep a reference to the window so it isn't garbage-collected.
