@@ -10,6 +10,7 @@ import fitz  # PyMuPDF for PDF to image conversion
 from PIL import Image
 from pywinauto import Application
 from pywinauto.keyboard import send_keys  # For global keystroke sending
+from electroninja.config.settings import Config
 
 # Set up logging
 logger = logging.getLogger('electroninja')
@@ -75,10 +76,6 @@ class LTSpiceInterface:
         # Automate LTSpice to print the circuit to a PDF.
         if not self._run_ltspice_gui_and_print(asc_path, pdf_path):
             logger.error("Failed to automate LTSpice print to PDF.")
-            return None
-        
-        if not os.path.exists(pdf_path):
-            logger.error(f"PDF file was not created at {pdf_path}")
             return None
         
         # Convert the PDF to a PNG image.
@@ -279,7 +276,7 @@ class LTSpiceInterface:
             # Step 5: Press Enter to save PDF.
             save_dlg.type_keys("{ENTER}", pause=0.0001)
             logger.info("Pressed Enter to save PDF")
-            time.sleep(1.3)  # Wait 1.3 seconds for PDF generation THIS CANNON BE REDUCED I TRIED
+            time.sleep(4)  # Wait 4 seconds for PDF generation
             
             # Step 6: Now explicitly close LTSpice after PDF generation
             self._close_ltspice(quiet=False)

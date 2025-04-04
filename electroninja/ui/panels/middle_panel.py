@@ -5,7 +5,7 @@ import logging
 import re
 from PyQt5.QtWidgets import (
     QFrame, QVBoxLayout, QLabel, QSizePolicy,
-    QHBoxLayout, QWidget, QGraphicsOpacityEffect
+    QHBoxLayout, QWidget, QGraphicsOpacityEffect, QPushButton
 )
 from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont, QPixmap
@@ -106,6 +106,22 @@ class MiddlePanel(QFrame):
         
         self.main_layout.addWidget(self.display_container)
         self.main_layout.addStretch()
+
+        # "Edit with LT Spice" button
+        buttons_layout = QHBoxLayout()
+        self.edit_button = QPushButton("Edit with LT Spice", self)
+        self.edit_button.setObjectName("edit_button")
+        
+        buttons_layout.addWidget(self.edit_button, alignment=Qt.AlignCenter)
+        
+        # Make text bold like the title
+        self.edit_button.setStyleSheet(
+            "font-weight: bold;"
+            "text-align: center;"
+        )
+        
+        self.main_layout.addLayout(buttons_layout)
+
         
     def set_circuit_image(self, image_path, iteration=None):
         """
@@ -138,10 +154,10 @@ class MiddlePanel(QFrame):
         self.current_iteration = iteration
         self._update_iteration_indicator(iteration)
         
-        # Skip if same image
-        if self.current_image_path and os.path.normpath(self.current_image_path) == os.path.normpath(image_path):
-            logger.info(f"Skipping duplicate image: {image_path}")
-            return
+        # # Skip if same image
+        # if self.current_image_path and os.path.normpath(self.current_image_path) == os.path.normpath(image_path):
+        #     logger.info(f"Skipping duplicate image: {image_path}")
+        #     return
             
         self.current_image_path = image_path
         
