@@ -100,7 +100,7 @@ class MainWindow(QMainWindow):
                 except Exception as e:
                     print(f"Error while removing directory {dir_path}: {e}")
 
-            print("Cleared output directory")
+        print("Cleared output directory")
 
     # In main_window.py, inside the MainWindow class
 

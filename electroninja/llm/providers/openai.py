@@ -147,9 +147,15 @@ class OpenAIProvider(LLMProvider):
                 except Exception as e:
                     self.logger.error(f"Error reading components file: {str(e)}")
 
-        # 4. Include examples from the vector database, if any.
+        4. Include examples from the vector database, if any.
         if examples and len(examples) > 0:
-            prompt_parts.append("The following examples are for you to understand how certain circuits could be built. Don't copy them directly, just take inspiration from them.\n")
+            prompt_parts.append(
+                "You also will be provided with three example ASC files that are relevant to the user's query. " 
+                "However, only use these as a reference to understand the syntax for necessary components and their connections, DO NOT try to copy their coordinate system. "
+                "Also, carefully examine how multiple wires are used in the example circuits to create corners when connecting two nodes to increase spacing, instead of connecting a node with a single straight wire and making the whole circuit tight. "
+                "Come up with your own coordinates and connections using the instructions above, keeping in mind the location of the reference node and the offset translations.\n"
+                "Below are three examples of circuits similar to the user's request:\n\n"
+            )
             prompt_parts.append("=== EXAMPLES FROM SIMILAR CIRCUITS ===\n")
             for i, example in enumerate(examples, start=1):
                 ex_desc = example.get("metadata", {}).get("description", "No description provided")

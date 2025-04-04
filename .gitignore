@@ -68,3 +68,6 @@ desktop.ini
 *.tmp
 *.bak
 temp/
+
+# Ignore everything inside the output folder
+data/output/*

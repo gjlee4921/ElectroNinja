@@ -1,1 +1,1 @@
-A circuit with a 5V voltage source (V1) in parallel with a set of three 4Ω resistors (R1, R2, and R4) connected in series.
+A circuit with a 5V battery, two 4-ohm resistors in series, and an additional 4-ohm resistor connected in parallel to the series combination.
