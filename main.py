@@ -5,14 +5,14 @@ from PyQt5.QtCore import QPropertyAnimation, QEasingCurve, Qt, pyqtSlot, QThread
 from PyQt5.QtGui import QFont
 
 # Import custom modules
-from electroninja.gui.style import STYLE_SHEET, setup_fonts, COLORS
-from electroninja.gui.top_bar import TopBar
-from electroninja.gui.left_panel import LeftPanel
-from electroninja.gui.middle_panel import MiddlePanel
-from electroninja.gui.right_panel import RightPanel
-from electroninja.llm.chat_manager import ChatManager, general, asc_generation_prompt, user_prompt, safety_for_agent
-from electroninja.llm.vector_db import VectorDB
-from electroninja.llm.vision import VisionManager
+from gui.style import STYLE_SHEET, setup_fonts, COLORS
+from gui.top_bar import TopBar
+from gui.left_panel import LeftPanel
+from gui.middle_panel import MiddlePanel
+from gui.right_panel import RightPanel
+from backend.llm.chat_manager import ChatManager, general, asc_generation_prompt, user_prompt, safety_for_agent
+from backend.llm.vector_db import VectorDB
+from backend.llm.vision import VisionManager
 
 # Worker class for asynchronous LLM calls
 class LLMWorker(QThread):
@@ -150,6 +150,7 @@ class MainWindow(QMainWindow):
             f"{general}\n\n"
             "You also will be provided with three example ASC files that are relevant to the user's query." 
             "However, only use these as a reference to understand the syntax for necessary components and their connections, DO NOT try to copy their coordinate system."
+            "Also, carefully examine how multiple wires are used in the example circuits to create corners when connecting two nodes to increase spacing, instead of connecting a node with a single straight wire and making the whole circuit tight."
             "Come up with your own coordinates and connections using the instructions above, keeping in mind the location of the reference node and the offset translations.\n"
             "Below are three examples of circuits similar to the user's request:\n\n"
             f"{examples_text}"
@@ -256,7 +257,7 @@ class MainWindow(QMainWindow):
 
     def run_feedback_loop(self, iteration):
         print(f"Starting feedback loop, iteration {iteration}...")
-        from electroninja.circuits.circuit_saver import circuit_saver
+        from backend.circuits.circuit_saver import circuit_saver
         result = circuit_saver(self.current_circuit_file)
         if result:
             asc_path, png_file = result

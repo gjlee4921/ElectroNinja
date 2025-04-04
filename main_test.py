@@ -8,11 +8,11 @@ from PyQt5.QtCore import QPropertyAnimation, QEasingCurve, Qt, pyqtSlot, QThread
 from PyQt5.QtGui import QFont
 
 # Import custom modules (same as your main.py except we remove references to ChatManager)
-from electroninja.gui.style import STYLE_SHEET, setup_fonts, COLORS
-from electroninja.gui.top_bar import TopBar
-from electroninja.gui.left_panel import LeftPanel
-from electroninja.gui.middle_panel import MiddlePanel
-from electroninja.gui.right_panel import RightPanel
+from gui.style import STYLE_SHEET, setup_fonts, COLORS
+from gui.top_bar import TopBar
+from gui.left_panel import LeftPanel
+from gui.middle_panel import MiddlePanel
+from gui.right_panel import RightPanel
 
 # --------------------------------------------------------------------------------
 # 1) Create a 'FakeChatManager' that returns random strings of length 100-300

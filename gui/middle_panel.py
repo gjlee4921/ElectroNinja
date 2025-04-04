@@ -126,7 +126,7 @@ class MiddlePanel(QFrame):
         import pygetwindow as gw
         import pyautogui
         import subprocess
-        from electroninja.circuits.circuit_saver import circuit_saver
+        from backend.circuits.circuit_saver import circuit_saver
         from PyQt5.QtWidgets import QMessageBox
 
         # The real left panel is in the main window

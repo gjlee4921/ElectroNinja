@@ -1,6 +1,6 @@
 import os
 import json
-from electroninja.llm.vector_db import VectorDB
+from backend.llm.vector_db import VectorDB
 
 def ingest_examples():
     db = VectorDB()

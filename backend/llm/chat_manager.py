@@ -16,12 +16,12 @@ def process_file(file_path):
 
 # Prompt fragments
 general = (
-    process_file(r"electroninja\\llm\\prompts\\general.txt") + "\n" +
-    process_file(r"electroninja\\llm\\prompts\\resistor.txt") + "\n" +
-    process_file(r"electroninja\\llm\\prompts\\capacitor.txt") + "\n" +
-    process_file(r"electroninja\\llm\\prompts\\voltage_source.txt") + "\n" +
-    process_file(r"electroninja\\llm\\prompts\\diode.txt") + "\n" +
-    process_file(r"electroninja\\llm\\prompts\\inductor.txt")
+    process_file(r"backend\\llm\\prompts\\general.txt") + "\n" +
+    process_file(r"backend\\llm\\prompts\\resistor.txt") + "\n" +
+    # process_file(r"backend\\llm\\prompts\\capacitor.txt") + "\n" +
+    process_file(r"backend\\llm\\prompts\\voltage_source.txt") #+ "\n" +
+    # process_file(r"backend\\llm\\prompts\\diode.txt") + "\n" +
+    # process_file(r"backend\\llm\\prompts\\inductor.txt")
 )
 
 safety_for_agent = (

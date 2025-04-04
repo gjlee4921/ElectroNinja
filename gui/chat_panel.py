@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, QTimer
 from PyQt5.QtGui import QFont
 
-from electroninja.gui.chat_bubble import ChatBubble
+from gui.chat_bubble import ChatBubble
 
 class ChatPanel(QScrollArea):
     """

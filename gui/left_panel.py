@@ -84,7 +84,7 @@ class LeftPanel(QFrame):
         print(f"Temporary file created: {temp_file_path}")
 
         # Import circuit_saver and process the schematic
-        from electroninja.circuits.circuit_saver import circuit_saver
+        from backend.circuits.circuit_saver import circuit_saver
         _, img_path = circuit_saver(temp_file_path)
 
         # Emit the final PNG path so the MiddlePanel can update its display

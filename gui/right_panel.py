@@ -3,8 +3,8 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont
-from electroninja.gui.chat_panel import ChatPanel
-from electroninja.gui.chat_input import ChatInputWidget
+from gui.chat_panel import ChatPanel
+from gui.chat_input import ChatInputWidget
 
 class RightPanel(QFrame):
     """

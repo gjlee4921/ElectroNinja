@@ -1,5 +1,5 @@
 import sys
-from electroninja.llm.vector_db import VectorDB
+from backend.llm.vector_db import VectorDB
 
 def main():
     # Create a VectorDB instance
