@@ -1,1 +1,0 @@
-A circuit with a 5V battery and two 4-ohm resistors in series.

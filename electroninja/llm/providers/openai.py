@@ -147,7 +147,7 @@ class OpenAIProvider(LLMProvider):
                 except Exception as e:
                     self.logger.error(f"Error reading components file: {str(e)}")
 
-        4. Include examples from the vector database, if any.
+        # 4. Include examples from the vector database, if any.
         if examples and len(examples) > 0:
             prompt_parts.append(
                 "You also will be provided with three example ASC files that are relevant to the user's query. " 
